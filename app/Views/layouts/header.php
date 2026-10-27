@@ -2,19 +2,37 @@
 
 use App\Helpers\CoreHelper;
 use App\Models\BookingModel;
+use App\Models\BuildingModel;
 
 $currentUser = CoreHelper::user();
 $flashes = CoreHelper::getFlashes();
 $currentUri = $_SERVER['REQUEST_URI'] ?? '/';
 $isAdminOrStaff = CoreHelper::hasRole(['admin', 'staff']);
+$isAdmin = CoreHelper::hasRole(['admin']);
 
 $roleLabels = [
-    'admin'  => ['label' => 'Chủ trọ / Admin', 'class' => 'badge-role-admin', 'icon' => 'bi-shield-check'],
-    'staff'  => ['label' => 'Nhân viên QL', 'class' => 'badge-role-staff', 'icon' => 'bi-person-check'],
+    'admin'  => ['label' => 'Quản trị viên (Admin)', 'class' => 'badge-role-admin', 'icon' => 'bi-shield-check'],
+    'staff'  => ['label' => 'Quản lý (Chủ trọ)', 'class' => 'badge-role-staff', 'icon' => 'bi-person-check'],
     'tenant' => ['label' => 'Khách thuê', 'class' => 'badge-role-tenant', 'icon' => 'bi-house-heart'],
 ];
 $roleBadge = $roleLabels[$currentUser['role'] ?? 'tenant'] ?? $roleLabels['tenant'];
 $isDashboard = (str_contains($currentUri, '/dashboard') || rtrim($currentUri, '/') === CoreHelper::basePath());
+
+$activeBuildingId = CoreHelper::currentBuildingId();
+$activeBuildingInfo = null;
+$allBuildingsHeader = [];
+if ($isAdminOrStaff) {
+    try {
+        $bldModel = new BuildingModel();
+        if ($isAdmin) {
+            $allBuildingsHeader = $bldModel->getAll();
+        }
+        if ($activeBuildingId !== null && $activeBuildingId > 0) {
+            $activeBuildingInfo = $bldModel->findById($activeBuildingId);
+        }
+    } catch (\Throwable $e) {
+    }
+}
 
 // Lấy danh sách thông báo yêu cầu giữ phòng từ trang Web 360° (dành cho Chủ trọ & Nhân viên)
 $pendingBookingsCount = 0;
@@ -73,6 +91,14 @@ if ($isAdminOrStaff) {
                 <!-- Menu Công Cụ Ngang Chính (Đã tinh gọn chống tràn tuyệt đối) -->
                 <div class="collapse navbar-collapse" id="horizontalMainNavbar">
                     <ul class="navbar-nav horizontal-nav-pills mx-auto my-2 my-xl-0">
+                        <?php if ($isAdmin): ?>
+                        <li class="nav-item">
+                            <a href="<?= CoreHelper::url('/buildings') ?>" class="nav-link <?= str_contains($currentUri, '/buildings') ? 'active' : '' ?>" title="Trang điều hướng tới từng tòa nhà của Admin">
+                                <span class="nav-icon-box"><i class="bi bi-buildings-fill"></i></span>
+                                <span>Tòa nhà</span>
+                            </a>
+                        </li>
+                        <?php endif; ?>
                         <li class="nav-item">
                             <a href="<?= CoreHelper::url('/dashboard') ?>" class="nav-link <?= $isDashboard ? 'active' : '' ?>">
                                 <span class="nav-icon-box"><i class="bi bi-grid-1x2-fill"></i></span>
@@ -283,16 +309,44 @@ if ($isAdminOrStaff) {
                             <div class="hero-accent-badge">
                                 <i class="bi bi-stars"></i>
                             </div>
-                            <div>
-                                <div class="hero-breadcrumb">
-                                    <span>Hệ thống Quản lý</span>
-                                    <i class="bi bi-chevron-right mx-1" style="font-size: 0.6rem;"></i>
-                                    <span class="text-primary fw-semibold"><?= CoreHelper::e($pageTitle ?? 'Bảng điều khiển') ?></span>
-                                </div>
-                                <h4 class="hero-title mb-0"><?= CoreHelper::e($pageTitle ?? 'Bảng điều khiển') ?></h4>
-                            </div>
+                            <h5 class="hero-title mb-0"><?= CoreHelper::e($pageTitle ?? 'Bảng điều khiển') ?></h5>
                         </div>
-                        <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <?php if ($isAdmin): ?>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm <?= $activeBuildingInfo ? 'btn-primary' : 'btn-outline-primary' ?> dropdown-toggle fw-semibold rounded-pill px-3" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-building me-1"></i>
+                                        <?= $activeBuildingInfo ? CoreHelper::e($activeBuildingInfo['building_name']) : 'Tất cả 3 Tòa nhà' ?>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                        <li><h6 class="dropdown-header">Điều hướng nhanh Tòa nhà (Admin)</h6></li>
+                                        <li>
+                                            <a class="dropdown-item <?= empty($activeBuildingInfo) ? 'active fw-bold' : '' ?>" href="<?= CoreHelper::url('/buildings/select', ['id' => 0, 'redirect_to' => '/dashboard']) ?>">
+                                                <i class="bi bi-globe-asia-australia me-2"></i>Xem Tất cả Tòa nhà
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <?php foreach ($allBuildingsHeader as $hb): ?>
+                                            <li>
+                                                <a class="dropdown-item <?= ((int) ($activeBuildingId ?? 0) === (int) $hb['id']) ? 'active fw-bold' : '' ?>"
+                                                   href="<?= CoreHelper::url('/buildings/select', ['id' => $hb['id'], 'redirect_to' => '/dashboard']) ?>">
+                                                    <i class="bi bi-building-check me-2"></i><?= CoreHelper::e($hb['building_name']) ?>
+                                                </a>
+                                            </li>
+                                        <?php endforeach; ?>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-primary fw-semibold" href="<?= CoreHelper::url('/buildings') ?>">
+                                                <i class="bi bi-compass me-2"></i>Trang Điều hướng Tòa nhà
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            <?php elseif ($isAdminOrStaff && $activeBuildingInfo): ?>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2 fw-semibold">
+                                    <i class="bi bi-building-lock me-1"></i>Quản lý riêng: <?= CoreHelper::e($activeBuildingInfo['building_name']) ?>
+                                </span>
+                            <?php endif; ?>
                             <div class="live-date-pill">
                                 <span class="pulse-dot"></span>
                                 <i class="bi bi-calendar3 me-1 text-primary"></i>

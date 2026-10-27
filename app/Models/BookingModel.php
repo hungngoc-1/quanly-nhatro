@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Config\Database;
+use App\Helpers\CoreHelper;
 use PDO;
 
 class BookingModel
@@ -71,13 +72,24 @@ class BookingModel
     public function getAll(?string $status = null, int $limit = 30): array
     {
         try {
-            $sql = "SELECT * FROM booking_requests WHERE 1=1";
+            $buildingId = CoreHelper::currentBuildingId();
+            $sql = "
+                SELECT br.*, r.building_id, b.building_name
+                FROM booking_requests br
+                LEFT JOIN rooms r ON r.room_number = br.room_number
+                LEFT JOIN buildings b ON b.id = r.building_id
+                WHERE 1=1
+            ";
             $params = [];
+            if ($buildingId !== null && $buildingId > 0) {
+                $sql .= " AND (r.building_id = :building_id OR r.id IS NULL)";
+                $params['building_id'] = $buildingId;
+            }
             if ($status !== null && $status !== '') {
-                $sql .= " AND status = :status";
+                $sql .= " AND br.status = :status";
                 $params['status'] = $status;
             }
-            $sql .= " ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC, id DESC LIMIT " . (int) $limit;
+            $sql .= " ORDER BY CASE WHEN br.status = 'pending' THEN 0 ELSE 1 END ASC, br.id DESC LIMIT " . (int) $limit;
             $stmt = $this->db()->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll();
@@ -100,8 +112,22 @@ class BookingModel
     public function getHistory(int $limit = 100): array
     {
         try {
-            $sql = "SELECT * FROM booking_requests WHERE status IN ('contacted', 'cancelled') ORDER BY id DESC LIMIT " . (int) $limit;
-            $stmt = $this->db()->query($sql);
+            $buildingId = CoreHelper::currentBuildingId();
+            $sql = "
+                SELECT br.*, r.building_id, b.building_name
+                FROM booking_requests br
+                LEFT JOIN rooms r ON r.room_number = br.room_number
+                LEFT JOIN buildings b ON b.id = r.building_id
+                WHERE br.status IN ('contacted', 'cancelled')
+            ";
+            $params = [];
+            if ($buildingId !== null && $buildingId > 0) {
+                $sql .= " AND (r.building_id = :building_id OR r.id IS NULL)";
+                $params['building_id'] = $buildingId;
+            }
+            $sql .= " ORDER BY br.id DESC LIMIT " . (int) $limit;
+            $stmt = $this->db()->prepare($sql);
+            $stmt->execute($params);
             return $stmt->fetchAll();
         } catch (\Throwable $e) {
             return [];
@@ -111,6 +137,17 @@ class BookingModel
     public function getPendingCount(): int
     {
         try {
+            $buildingId = CoreHelper::currentBuildingId();
+            if ($buildingId !== null && $buildingId > 0) {
+                $stmt = $this->db()->prepare("
+                    SELECT COUNT(*)
+                    FROM booking_requests br
+                    LEFT JOIN rooms r ON r.room_number = br.room_number
+                    WHERE br.status = 'pending' AND (r.building_id = :building_id OR r.id IS NULL)
+                ");
+                $stmt->execute(['building_id' => $buildingId]);
+                return (int) $stmt->fetchColumn();
+            }
             $stmt = $this->db()->query("SELECT COUNT(*) FROM booking_requests WHERE status = 'pending'");
             return (int) $stmt->fetchColumn();
         } catch (\Throwable $e) {
@@ -121,6 +158,17 @@ class BookingModel
     public function getHistoryCount(): int
     {
         try {
+            $buildingId = CoreHelper::currentBuildingId();
+            if ($buildingId !== null && $buildingId > 0) {
+                $stmt = $this->db()->prepare("
+                    SELECT COUNT(*)
+                    FROM booking_requests br
+                    LEFT JOIN rooms r ON r.room_number = br.room_number
+                    WHERE br.status IN ('contacted', 'cancelled') AND (r.building_id = :building_id OR r.id IS NULL)
+                ");
+                $stmt->execute(['building_id' => $buildingId]);
+                return (int) $stmt->fetchColumn();
+            }
             $stmt = $this->db()->query("SELECT COUNT(*) FROM booking_requests WHERE status IN ('contacted', 'cancelled')");
             return (int) $stmt->fetchColumn();
         } catch (\Throwable $e) {

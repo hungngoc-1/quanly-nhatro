@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Config\Database;
+use App\Helpers\CoreHelper;
 use InvalidArgumentException;
 use PDO;
 
@@ -25,24 +26,27 @@ class InvoiceModel
 
     /**
      * Tính tổng tiền hóa đơn (dùng chung cho Controller & InvoiceTest)
+     * Hỗ trợ cộng thêm tiền đặt cọc (khi khách vào ở) và trừ tiền hoàn cọc (khi khách rời đi sau khi hết hạn HĐ)
      */
     public function calculateInvoiceTotal(
         float $roomFee,
         float $electricFee,
         float $waterFee,
         float $serviceFee = 0.0,
-        float $discount = 0.0
+        float $discount = 0.0,
+        float $depositFee = 0.0,
+        float $depositRefund = 0.0
     ): float {
-        if ($roomFee < 0 || $electricFee < 0 || $waterFee < 0 || $serviceFee < 0 || $discount < 0) {
+        if ($roomFee < 0 || $electricFee < 0 || $waterFee < 0 || $serviceFee < 0 || $discount < 0 || $depositFee < 0 || $depositRefund < 0) {
             throw new InvalidArgumentException('Các khoản phí và giảm giá không được âm.');
         }
 
-        $gross = $roomFee + $electricFee + $waterFee + $serviceFee;
-        if ($discount > $gross) {
+        $gross = $roomFee + $electricFee + $waterFee + $serviceFee + $depositFee;
+        if ($discount > $gross && $depositRefund == 0.0) {
             throw new InvalidArgumentException('Số tiền giảm giá không được lớn hơn tổng tiền trước giảm.');
         }
 
-        return round($gross - $discount, 2);
+        return max(0.0, round($gross - $discount - $depositRefund, 2));
     }
 
     /**
@@ -83,17 +87,31 @@ class InvoiceModel
             SELECT inv.*,
                    r.room_number,
                    r.floor,
+                   r.building_id,
+                   b.building_name,
                    t.full_name AS tenant_name,
                    t.phone AS tenant_phone,
                    c.contract_code,
+                   c.deposit_amount AS contract_deposit_amount,
+                   c.deposit_status AS contract_deposit_status,
                    (inv.total_amount - inv.paid_amount) AS remaining_amount
             FROM invoices inv
             INNER JOIN rooms r ON r.id = inv.room_id
+            LEFT JOIN buildings b ON b.id = r.building_id
             INNER JOIN tenants t ON t.id = inv.tenant_id
             INNER JOIN contracts c ON c.id = inv.contract_id
             WHERE 1=1
         ";
         $params = [];
+
+        $buildingId = array_key_exists('building_id', $filters) && $filters['building_id'] !== ''
+            ? (int) $filters['building_id']
+            : CoreHelper::currentBuildingId();
+
+        if (!empty($buildingId) && empty($filters['tenant_id'])) {
+            $sql .= " AND r.building_id = :building_id";
+            $params['building_id'] = (int) $buildingId;
+        }
 
         if (!empty($filters['month'])) {
             $sql .= " AND inv.month = :month";
@@ -128,7 +146,7 @@ class InvoiceModel
             $params['kw3'] = $kw;
         }
 
-        $sql .= " ORDER BY inv.year DESC, inv.month DESC, r.room_number ASC";
+        $sql .= " ORDER BY inv.year DESC, inv.month DESC, inv.id DESC";
         $stmt = $this->db()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
@@ -155,12 +173,22 @@ class InvoiceModel
                    r.room_number,
                    r.floor,
                    r.area,
+                   r.building_id,
+                   b.building_name,
+                   b.address AS building_address,
+                   rt.type_name AS room_type_name,
                    t.user_id AS tenant_user_id,
                    t.full_name AS tenant_name,
                    t.phone AS tenant_phone,
                    t.cccd AS tenant_cccd,
                    t.email AS tenant_email,
                    c.contract_code,
+                   c.start_date AS contract_start_date,
+                   c.end_date AS contract_end_date,
+                   c.monthly_rent AS contract_monthly_rent,
+                   c.deposit_amount AS contract_deposit_amount,
+                   c.deposit_status AS contract_deposit_status,
+                   c.termination_reason,
                    u.old_electric,
                    u.new_electric,
                    u.electric_used,
@@ -172,6 +200,8 @@ class InvoiceModel
                    (inv.total_amount - inv.paid_amount) AS remaining_amount
             FROM invoices inv
             INNER JOIN rooms r ON r.id = inv.room_id
+            LEFT JOIN buildings b ON b.id = r.building_id
+            LEFT JOIN room_types rt ON rt.id = r.room_type_id
             INNER JOIN tenants t ON t.id = inv.tenant_id
             INNER JOIN contracts c ON c.id = inv.contract_id
             LEFT JOIN utilities u ON u.id = inv.utility_id
@@ -210,43 +240,49 @@ class InvoiceModel
         $electricFee = (float) ($data['electric_fee'] ?? 0);
         $waterFee = (float) ($data['water_fee'] ?? 0);
         $serviceFee = (float) ($data['service_fee'] ?? 0);
+        $depositFee = (float) ($data['deposit_fee'] ?? 0);
+        $depositRefund = (float) ($data['deposit_refund'] ?? 0);
         $discount = (float) ($data['discount'] ?? 0);
         $paidAmount = (float) ($data['paid_amount'] ?? 0);
+        $invoiceType = $data['invoice_type'] ?? ($depositFee > 0 ? 'move_in' : ($depositRefund > 0 ? 'move_out' : 'monthly'));
 
-        $totalAmount = $this->calculateInvoiceTotal($roomFee, $electricFee, $waterFee, $serviceFee, $discount);
+        $totalAmount = $this->calculateInvoiceTotal($roomFee, $electricFee, $waterFee, $serviceFee, $discount, $depositFee, $depositRefund);
         $dueDate = $data['due_date'] ?? date('Y-m-d', strtotime('+5 days'));
         $status = $data['status'] ?? $this->determinePaymentStatus($totalAmount, $paidAmount, $dueDate);
 
         $stmt = $this->db()->prepare("
             INSERT INTO invoices (
-                invoice_code, contract_id, room_id, tenant_id, utility_id,
+                invoice_code, invoice_type, contract_id, room_id, tenant_id, utility_id,
                 month, year, room_fee, electric_fee, water_fee, service_fee,
-                discount, total_amount, paid_amount, status, due_date, notes
+                deposit_fee, deposit_refund, discount, total_amount, paid_amount, status, due_date, notes
             ) VALUES (
-                :invoice_code, :contract_id, :room_id, :tenant_id, :utility_id,
+                :invoice_code, :invoice_type, :contract_id, :room_id, :tenant_id, :utility_id,
                 :month, :year, :room_fee, :electric_fee, :water_fee, :service_fee,
-                :discount, :total_amount, :paid_amount, :status, :due_date, :notes
+                :deposit_fee, :deposit_refund, :discount, :total_amount, :paid_amount, :status, :due_date, :notes
             )
         ");
 
         $stmt->execute([
-            'invoice_code' => $data['invoice_code'],
-            'contract_id'  => (int) $data['contract_id'],
-            'room_id'      => (int) $data['room_id'],
-            'tenant_id'    => (int) $data['tenant_id'],
-            'utility_id'   => !empty($data['utility_id']) ? (int) $data['utility_id'] : null,
-            'month'        => (int) $data['month'],
-            'year'         => (int) $data['year'],
-            'room_fee'     => $roomFee,
-            'electric_fee' => $electricFee,
-            'water_fee'    => $waterFee,
-            'service_fee'  => $serviceFee,
-            'discount'     => $discount,
-            'total_amount' => $totalAmount,
-            'paid_amount'  => $paidAmount,
-            'status'       => $status,
-            'due_date'     => $dueDate,
-            'notes'        => trim($data['notes'] ?? ''),
+            'invoice_code'   => $data['invoice_code'],
+            'invoice_type'   => $invoiceType,
+            'contract_id'    => (int) $data['contract_id'],
+            'room_id'        => (int) $data['room_id'],
+            'tenant_id'      => (int) $data['tenant_id'],
+            'utility_id'     => !empty($data['utility_id']) ? (int) $data['utility_id'] : null,
+            'month'          => (int) $data['month'],
+            'year'           => (int) $data['year'],
+            'room_fee'       => $roomFee,
+            'electric_fee'   => $electricFee,
+            'water_fee'      => $waterFee,
+            'service_fee'    => $serviceFee,
+            'deposit_fee'    => $depositFee,
+            'deposit_refund' => $depositRefund,
+            'discount'       => $discount,
+            'total_amount'   => $totalAmount,
+            'paid_amount'    => $paidAmount,
+            'status'         => $status,
+            'due_date'       => $dueDate,
+            'notes'          => trim($data['notes'] ?? ''),
         ]);
 
         return (int) $this->db()->lastInsertId();
@@ -280,17 +316,28 @@ class InvoiceModel
         ]);
     }
 
-    public function getUnpaidInvoices(): array
+    public function getUnpaidInvoices(?int $buildingId = null): array
     {
-        $stmt = $this->db()->query("
-            SELECT inv.*, r.room_number, t.full_name AS tenant_name,
+        $bId = $buildingId ?? CoreHelper::currentBuildingId();
+        $whereBuilding = '';
+        $params = [];
+        if (!empty($bId)) {
+            $whereBuilding = ' AND r.building_id = :building_id';
+            $params['building_id'] = (int) $bId;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT inv.*, r.room_number, r.building_id, b.building_name, t.full_name AS tenant_name,
                    (inv.total_amount - inv.paid_amount) AS remaining_amount
             FROM invoices inv
             INNER JOIN rooms r ON r.id = inv.room_id
+            LEFT JOIN buildings b ON b.id = r.building_id
             INNER JOIN tenants t ON t.id = inv.tenant_id
             WHERE inv.status IN ('unpaid', 'partial', 'overdue')
+            {$whereBuilding}
             ORDER BY inv.due_date ASC, inv.id DESC
         ");
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 

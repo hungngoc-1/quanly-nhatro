@@ -263,4 +263,43 @@ class CoreHelper
         $roles = (array) $roles;
         return in_array($user['role'] ?? '', $roles, true);
     }
+
+    /**
+     * Lấy ID Tòa nhà đang được phân quyền hoặc đang được Admin chọn điều hướng
+     * - Quản lý (Chủ trọ - role 'staff'): Bắt buộc chỉ được xem tòa nhà mình quản lý (user['building_id']), tuyệt đối không xem được tòa khác.
+     * - Quản trị viên (Admin - role 'admin'): Xem tòa nhà đang chọn điều hướng (hoặc null = xem toàn bộ 3 tòa nhà).
+     */
+    public static function currentBuildingId(): ?int
+    {
+        $user = self::user();
+        if (!$user) {
+            return null;
+        }
+
+        if (($user['role'] ?? '') === 'staff') {
+            return !empty($user['building_id']) ? (int) $user['building_id'] : 1;
+        }
+
+        if (($user['role'] ?? '') === 'admin') {
+            $selected = $_SESSION['selected_building_id'] ?? null;
+            return !empty($selected) ? (int) $selected : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Cho phép Admin chọn điều hướng tới 1 tòa nhà cụ thể (hoặc 0/null để xem tất cả tòa nhà)
+     */
+    public static function setSelectedBuildingId(?int $buildingId): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        if ($buildingId !== null && $buildingId > 0) {
+            $_SESSION['selected_building_id'] = $buildingId;
+        } else {
+            unset($_SESSION['selected_building_id']);
+        }
+    }
 }

@@ -56,9 +56,15 @@ class AuthController
         session_regenerate_id(true);
         $_SESSION['user'] = $user;
 
+        if (($user['role'] ?? '') === 'staff') {
+            $_SESSION['selected_building_id'] = !empty($user['building_id']) ? (int) $user['building_id'] : 1;
+        } else {
+            unset($_SESSION['selected_building_id']);
+        }
+
         CoreHelper::setFlash('success', 'Xin chào, ' . $user['full_name'] . '!');
-        if ($user['role'] === 'tenant') {
-            CoreHelper::redirect('/invoices/my-list');
+        if ($user['role'] === 'admin') {
+            CoreHelper::redirect('/buildings');
         }
 
         CoreHelper::redirect('/dashboard');

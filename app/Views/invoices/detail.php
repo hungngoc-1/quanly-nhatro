@@ -110,9 +110,36 @@ $isAdminOrStaff = CoreHelper::hasRole(['admin', 'staff']);
                         <td class="small text-muted">Internet Wifi, vệ sinh rác, an ninh chung</td>
                         <td class="text-end fw-semibold"><?= CoreHelper::formatCurrency($invoice['service_fee']) ?></td>
                     </tr>
+                    <?php $stt = 5; ?>
+                    <?php if ((float) ($invoice['deposit_fee'] ?? 0) > 0 || ($invoice['invoice_type'] ?? '') === 'move_in'): ?>
+                    <tr class="table-info bg-opacity-25">
+                        <td class="text-center"><?= $stt++ ?></td>
+                        <td class="fw-bold text-primary">Tiền đặt cọc khi vào ở (Bằng 1 tháng tiền phòng)</td>
+                        <td class="small text-muted">Khoản tiền cọc đảm bảo hợp đồng (Hoàn lại khi kết thúc hợp đồng đúng hạn)</td>
+                        <td class="text-end fw-bold text-primary">+ <?= CoreHelper::formatCurrency($invoice['deposit_fee'] ?? 0) ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ((float) ($invoice['deposit_refund'] ?? 0) > 0 || ($invoice['invoice_type'] ?? '') === 'move_out'): ?>
+                    <tr class="<?= (float) ($invoice['deposit_refund'] ?? 0) > 0 ? 'table-success' : 'table-warning' ?> bg-opacity-25">
+                        <td class="text-center"><?= $stt++ ?></td>
+                        <td class="fw-bold <?= (float) ($invoice['deposit_refund'] ?? 0) > 0 ? 'text-success' : 'text-danger' ?>">
+                            Quyết toán Tiền đặt cọc khi rời đi
+                        </td>
+                        <td class="small text-muted">
+                            <?php if ((float) ($invoice['deposit_refund'] ?? 0) > 0): ?>
+                                Khách rời đi sau khi hết hạn hợp đồng &rarr; Được hoàn lại 100% tiền cọc
+                            <?php else: ?>
+                                Khách rời đi trước khi hết hạn hợp đồng &rarr; Mất tiền cọc (<?= CoreHelper::formatCurrency($invoice['contract_deposit_amount'] ?? 0) ?>)
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-end fw-bold <?= (float) ($invoice['deposit_refund'] ?? 0) > 0 ? 'text-success' : 'text-danger' ?>">
+                            - <?= CoreHelper::formatCurrency($invoice['deposit_refund'] ?? 0) ?>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php if ((float) $invoice['discount'] > 0): ?>
                     <tr>
-                        <td class="text-center">5</td>
+                        <td class="text-center"><?= $stt++ ?></td>
                         <td class="fw-semibold text-success">Khuyến mãi / Giảm trừ</td>
                         <td class="small text-muted">Giảm trừ hỗ trợ khách thuê</td>
                         <td class="text-end fw-semibold text-success">- <?= CoreHelper::formatCurrency($invoice['discount']) ?></td>

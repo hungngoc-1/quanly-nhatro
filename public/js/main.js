@@ -121,9 +121,11 @@ function previewInvoiceTotal() {
     const elecFee = Number(document.getElementById('inv_electric_fee')?.value || 0);
     const waterFee = Number(document.getElementById('inv_water_fee')?.value || 0);
     const serviceFee = Number(document.getElementById('inv_service_fee')?.value || 0);
+    const depositFee = Number(document.getElementById('inv_deposit_fee')?.value || 0);
+    const depositRefund = Number(document.getElementById('inv_deposit_refund')?.value || 0);
     const discount = Number(document.getElementById('inv_discount')?.value || 0);
 
-    const total = Math.max(0, roomFee + elecFee + waterFee + serviceFee - discount);
+    const total = Math.max(0, roomFee + elecFee + waterFee + serviceFee + depositFee - depositRefund - discount);
     const el = document.getElementById('invoicePreviewTotal');
     if (el) {
         el.innerText = formatVnd(total);

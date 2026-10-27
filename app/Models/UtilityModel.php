@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Config\Database;
+use App\Helpers\CoreHelper;
 use InvalidArgumentException;
 use PDO;
 
@@ -76,21 +77,33 @@ class UtilityModel
 
     public function getAll(array $filters = []): array
     {
+        $buildingId = array_key_exists('building_id', $filters)
+            ? ($filters['building_id'] !== null && $filters['building_id'] !== '' ? (int) $filters['building_id'] : null)
+            : CoreHelper::currentBuildingId();
+
         $sql = "
             SELECT u.*,
                    r.room_number,
                    r.floor,
+                   r.building_id,
+                   b.building_name,
                    t.full_name AS tenant_name,
                    inv.id AS invoice_id,
                    inv.invoice_code
             FROM utilities u
             INNER JOIN rooms r ON r.id = u.room_id
+            LEFT JOIN buildings b ON b.id = r.building_id
             LEFT JOIN contracts c ON c.id = u.contract_id
             LEFT JOIN tenants t ON t.id = c.tenant_id
             LEFT JOIN invoices inv ON inv.utility_id = u.id
             WHERE 1=1
         ";
         $params = [];
+
+        if ($buildingId !== null && $buildingId > 0) {
+            $sql .= " AND r.building_id = :building_id";
+            $params['building_id'] = $buildingId;
+        }
 
         if (!empty($filters['month'])) {
             $sql .= " AND u.month = :month";

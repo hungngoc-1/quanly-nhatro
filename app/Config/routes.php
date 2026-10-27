@@ -2,6 +2,7 @@
 
 use App\Controllers\ApiController;
 use App\Controllers\AuthController;
+use App\Controllers\BuildingController;
 use App\Controllers\ContractController;
 use App\Controllers\DashboardController;
 use App\Controllers\InvoiceController;
@@ -32,15 +33,26 @@ return [
     'GET /logout'                 => [AuthController::class, 'logout', []],
     'POST /logout'                => [AuthController::class, 'logout', []],
 
+    // Quản trị viên: Trang điều hướng & quản lý Tòa nhà (Buildings)
+    'GET /buildings'              => [BuildingController::class, 'index', ['roles' => ['admin']]],
+    'GET /buildings/select'       => [BuildingController::class, 'select', ['roles' => ['admin']]],
+    'POST /buildings/select'      => [BuildingController::class, 'select', ['roles' => ['admin']]],
+    'POST /buildings/store'       => [BuildingController::class, 'store', ['roles' => ['admin']]],
+    'POST /buildings/update'      => [BuildingController::class, 'update', ['roles' => ['admin']]],
+    'POST /buildings/delete'      => [BuildingController::class, 'delete', ['roles' => ['admin']]],
+
     // Trang chủ & Bảng điều khiển (Dashboard)
     'GET /'                       => [DashboardController::class, 'index', ['auth' => true]],
     'GET /dashboard'              => [DashboardController::class, 'index', ['auth' => true]],
 
-    // Quản lý Phòng trọ (Rooms)
+    // Quản lý Phòng trọ & Loại phòng (Rooms & Room Types)
     'GET /rooms'                  => [RoomController::class, 'index', ['roles' => ['admin', 'staff']]],
     'POST /rooms/store'           => [RoomController::class, 'store', ['roles' => ['admin', 'staff']]],
     'POST /rooms/update'          => [RoomController::class, 'update', ['roles' => ['admin', 'staff']]],
     'POST /rooms/delete'          => [RoomController::class, 'delete', ['roles' => ['admin']]],
+    'POST /room-types/store'      => [RoomController::class, 'storeRoomType', ['roles' => ['admin', 'staff']]],
+    'POST /room-types/update'     => [RoomController::class, 'updateRoomType', ['roles' => ['admin', 'staff']]],
+    'POST /room-types/delete'     => [RoomController::class, 'deleteRoomType', ['roles' => ['admin']]],
 
     // Quản lý Khách thuê (Tenants)
     'GET /tenants'                => [TenantController::class, 'index', ['roles' => ['admin', 'staff']]],
@@ -50,10 +62,14 @@ return [
 
     // Quản lý Hợp đồng (Contracts)
     'GET /contracts'              => [ContractController::class, 'index', ['roles' => ['admin', 'staff']]],
+    'GET /contracts/detail'       => [ContractController::class, 'detail', ['auth' => true]],
     'POST /contracts/store'       => [ContractController::class, 'store', ['roles' => ['admin', 'staff']]],
     'POST /contracts/update'      => [ContractController::class, 'update', ['roles' => ['admin', 'staff']]],
     'POST /contracts/terminate'   => [ContractController::class, 'terminate', ['roles' => ['admin', 'staff']]],
     'POST /contracts/delete'      => [ContractController::class, 'delete', ['roles' => ['admin']]],
+    'POST /contracts/renew'       => [ContractController::class, 'tenantRenew', ['auth' => true]],
+    'POST /contracts/sign-online' => [ContractController::class, 'signOnline', ['auth' => true]],
+    'POST /contracts/upload-scan' => [ContractController::class, 'uploadScan', ['roles' => ['admin', 'staff']]],
 
     // Quản lý Điện & Nước (Utilities)
     'GET /utilities'              => [UtilityController::class, 'index', ['roles' => ['admin', 'staff']]],

@@ -32,10 +32,16 @@ class UserModel
 
     public function findById(int $id): ?array
     {
-        $stmt = $this->db()->prepare("SELECT id, username, full_name, email, phone, role, status, created_at FROM users WHERE id = :id LIMIT 1");
+        $stmt = $this->db()->prepare("SELECT id, username, full_name, email, phone, role, building_id, status, created_at FROM users WHERE id = :id LIMIT 1");
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    public function getManagers(): array
+    {
+        $stmt = $this->db()->query("SELECT id, username, full_name, email, phone, role, building_id, status FROM users WHERE role = 'staff' ORDER BY id ASC");
+        return $stmt->fetchAll();
     }
 
     public function authenticate(string $username, string $password): ?array

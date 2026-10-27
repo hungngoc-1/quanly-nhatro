@@ -81,6 +81,7 @@ class InvoiceController
         }
 
         $utility = $this->utilityModel->findByRoomAndPeriod($roomId, $month, $year);
+        $invoiceType = $_POST['invoice_type'] ?? 'monthly';
         $roomFee = isset($_POST['room_fee']) && $_POST['room_fee'] !== ''
             ? (float) $_POST['room_fee']
             : (float) $contract['monthly_rent'];
@@ -93,25 +94,44 @@ class InvoiceController
         $serviceFee = isset($_POST['service_fee']) && $_POST['service_fee'] !== ''
             ? (float) $_POST['service_fee']
             : (float) ($utility['other_fee'] ?? $contract['service_fee'] ?? 150000);
+        $depositFee = isset($_POST['deposit_fee']) && $_POST['deposit_fee'] !== ''
+            ? (float) $_POST['deposit_fee']
+            : 0.0;
+        $depositRefund = isset($_POST['deposit_refund']) && $_POST['deposit_refund'] !== ''
+            ? (float) $_POST['deposit_refund']
+            : 0.0;
         $discount = (float) ($_POST['discount'] ?? 0);
+
+        if ($invoiceType === 'move_in' && empty($_POST['room_fee']) && empty($_POST['deposit_fee'])) {
+            $moveInCalc = $this->contractModel->calculateMoveInAmounts(
+                (float) $contract['monthly_rent'],
+                $serviceFee,
+                (string) $contract['start_date']
+            );
+            $roomFee = $moveInCalc['room_fee'];
+            $depositFee = $moveInCalc['deposit_fee'];
+        }
 
         try {
             $invoiceCode = $this->invoiceModel->generateInvoiceCode($contract['room_number'], $month, $year);
             $invoiceId = $this->invoiceModel->create([
-                'invoice_code' => $invoiceCode,
-                'contract_id'  => $contractId,
-                'room_id'      => $roomId,
-                'tenant_id'    => (int) $contract['tenant_id'],
-                'utility_id'   => $utility['id'] ?? null,
-                'month'        => $month,
-                'year'         => $year,
-                'room_fee'     => $roomFee,
-                'electric_fee' => $electricFee,
-                'water_fee'    => $waterFee,
-                'service_fee'  => $serviceFee,
-                'discount'     => $discount,
-                'due_date'     => !empty($_POST['due_date']) ? $_POST['due_date'] : date('Y-m-d', strtotime('+5 days')),
-                'notes'        => $_POST['notes'] ?? '',
+                'invoice_code'   => $invoiceCode,
+                'invoice_type'   => $invoiceType,
+                'contract_id'    => $contractId,
+                'room_id'        => $roomId,
+                'tenant_id'      => (int) $contract['tenant_id'],
+                'utility_id'     => $utility['id'] ?? null,
+                'month'          => $month,
+                'year'           => $year,
+                'room_fee'       => $roomFee,
+                'electric_fee'   => $electricFee,
+                'water_fee'      => $waterFee,
+                'service_fee'    => $serviceFee,
+                'deposit_fee'    => $depositFee,
+                'deposit_refund' => $depositRefund,
+                'discount'       => $discount,
+                'due_date'       => !empty($_POST['due_date']) ? $_POST['due_date'] : date('Y-m-d', strtotime('+5 days')),
+                'notes'          => $_POST['notes'] ?? '',
             ]);
 
             CoreHelper::setFlash('success', "Đã lập hóa đơn {$invoiceCode} thành công.");

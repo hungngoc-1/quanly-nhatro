@@ -4,32 +4,43 @@ namespace App\Controllers;
 
 use App\Helpers\CoreHelper;
 use App\Helpers\Validator;
+use App\Models\BuildingModel;
 use App\Models\RoomModel;
+use App\Models\RoomTypeModel;
 
 class RoomController
 {
     private RoomModel $roomModel;
+    private RoomTypeModel $roomTypeModel;
+    private BuildingModel $buildingModel;
 
     public function __construct()
     {
         $this->roomModel = new RoomModel();
+        $this->roomTypeModel = new RoomTypeModel();
+        $this->buildingModel = new BuildingModel();
     }
 
     public function index(): void
     {
         $filters = [
-            'status'  => $_GET['status'] ?? '',
-            'floor'   => $_GET['floor'] ?? '',
-            'keyword' => $_GET['keyword'] ?? '',
+            'status'       => $_GET['status'] ?? '',
+            'floor'        => $_GET['floor'] ?? '',
+            'room_type_id' => $_GET['room_type_id'] ?? '',
+            'keyword'      => $_GET['keyword'] ?? '',
         ];
 
         $rooms = $this->roomModel->getAll($filters);
         $counts = $this->roomModel->getCountsByStatus();
+        $roomTypes = $this->roomTypeModel->getAll();
+        $buildings = $this->buildingModel->getAll();
 
         CoreHelper::view('rooms/index', [
-            'pageTitle' => 'Quản lý Phòng trọ',
+            'pageTitle' => 'Quản lý Phòng trọ & Loại phòng',
             'rooms'     => $rooms,
             'counts'    => $counts,
+            'roomTypes' => $roomTypes,
+            'buildings' => $buildings,
             'filters'   => $filters,
         ]);
     }
@@ -114,6 +125,63 @@ class RoomController
             CoreHelper::setFlash('success', 'Đã xóa phòng trọ thành công.');
         } catch (\Throwable $e) {
             CoreHelper::setFlash('danger', 'Không thể xóa phòng đang có hợp đồng hoặc hóa đơn liên kết.');
+        }
+        CoreHelper::redirect('/rooms');
+    }
+
+    public function storeRoomType(): void
+    {
+        $validator = Validator::make($_POST, [
+            'type_code'     => 'required|max:30',
+            'type_name'     => 'required|max:100',
+            'default_price' => 'required|numeric|min:100000',
+        ], [
+            'type_code'     => 'Mã loại phòng',
+            'type_name'     => 'Tên loại phòng',
+            'default_price' => 'Giá tham chiếu',
+        ]);
+
+        if ($validator->fails()) {
+            CoreHelper::setFlash('danger', $validator->firstError());
+            CoreHelper::redirect('/rooms');
+        }
+
+        try {
+            $this->roomTypeModel->create($_POST);
+            CoreHelper::setFlash('success', 'Đã thêm loại phòng mới thành công.');
+        } catch (\Throwable $e) {
+            CoreHelper::setFlash('danger', 'Mã loại phòng đã tồn tại hoặc dữ liệu không hợp lệ.');
+        }
+
+        CoreHelper::redirect('/rooms');
+    }
+
+    public function updateRoomType(): void
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0 || !$this->roomTypeModel->findById($id)) {
+            CoreHelper::setFlash('danger', 'Không tìm thấy loại phòng.');
+            CoreHelper::redirect('/rooms');
+        }
+
+        try {
+            $this->roomTypeModel->update($id, $_POST);
+            CoreHelper::setFlash('success', 'Cập nhật loại phòng thành công.');
+        } catch (\Throwable $e) {
+            CoreHelper::setFlash('danger', 'Không thể cập nhật loại phòng.');
+        }
+
+        CoreHelper::redirect('/rooms');
+    }
+
+    public function deleteRoomType(): void
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+        try {
+            $this->roomTypeModel->delete($id);
+            CoreHelper::setFlash('success', 'Đã xóa loại phòng thành công.');
+        } catch (\Throwable $e) {
+            CoreHelper::setFlash('danger', 'Không thể xóa loại phòng đang được gán cho phòng trọ.');
         }
         CoreHelper::redirect('/rooms');
     }

@@ -3,6 +3,7 @@
 namespace App\Config;
 
 use App\Helpers\CoreHelper;
+use App\Models\SchemaMigration;
 use PDO;
 use PDOException;
 
@@ -59,6 +60,7 @@ class Database
         try {
             $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}";
             $this->connection = new PDO($dsn, $username, $password, $options);
+            SchemaMigration::ensureMigrated($this->connection);
         } catch (PDOException $e) {
             // Mã lỗi 1049: Unknown database trên WAMP MySQL -> Tự động tạo DB và nạp database.sql
             if ((int) $e->getCode() === 1049 || str_contains($e->getMessage(), 'Unknown database')) {
@@ -69,6 +71,7 @@ class Database
 
                     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}";
                     $this->connection = new PDO($dsn, $username, $password, $options);
+                    SchemaMigration::ensureMigrated($this->connection);
                     return;
                 } catch (PDOException $innerException) {
                     $this->renderConnectionError($innerException, $host, $port, $dbname, $username);

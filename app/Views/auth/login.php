@@ -125,22 +125,44 @@ $flashes = CoreHelper::getFlashes();
                                     <div class="d-flex align-items-center gap-2">
                                         <span class="demo-role-icon bg-primary text-white"><i class="bi bi-shield-lock-fill"></i></span>
                                         <div class="text-start lh-sm">
-                                            <div class="fw-bold text-dark small">Chủ trọ (Admin)</div>
-                                            <small class="text-muted" style="font-size: 0.72rem;">admin / 123456</small>
+                                            <div class="fw-bold text-dark small">Quản trị viên (Admin Hệ thống)</div>
+                                            <small class="text-muted" style="font-size: 0.72rem;">admin / 123456 &bull; Điều hướng cả 3 tòa nhà</small>
                                         </div>
                                     </div>
-                                    <span class="badge rounded-pill bg-primary-subtle text-primary">Toàn quyền</span>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary">Admin</span>
                                 </button>
 
                                 <button type="button" class="demo-account-btn" onclick="fillLogin('nhanvien', '123456')">
                                     <div class="d-flex align-items-center gap-2">
-                                        <span class="demo-role-icon bg-info text-white"><i class="bi bi-person-badge-fill"></i></span>
+                                        <span class="demo-role-icon bg-info text-white"><i class="bi bi-building-fill-lock"></i></span>
                                         <div class="text-start lh-sm">
-                                            <div class="fw-bold text-dark small">Nhân viên Quản lý</div>
-                                            <small class="text-muted" style="font-size: 0.72rem;">nhanvien / 123456</small>
+                                            <div class="fw-bold text-dark small">Quản lý (Chủ trọ) — Tòa A</div>
+                                            <small class="text-muted" style="font-size: 0.72rem;">nhanvien / 123456 &bull; Chỉ xem Tòa A</small>
                                         </div>
                                     </div>
-                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">Vận hành</span>
+                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">Tòa A</span>
+                                </button>
+
+                                <button type="button" class="demo-account-btn" onclick="fillLogin('quanly_b', '123456')">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="demo-role-icon bg-warning text-white"><i class="bi bi-building-fill-lock"></i></span>
+                                        <div class="text-start lh-sm">
+                                            <div class="fw-bold text-dark small">Quản lý (Chủ trọ) — Tòa B</div>
+                                            <small class="text-muted" style="font-size: 0.72rem;">quanly_b / 123456 &bull; Chỉ xem Tòa B</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis">Tòa B</span>
+                                </button>
+
+                                <button type="button" class="demo-account-btn" onclick="fillLogin('quanly_c', '123456')">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="demo-role-icon bg-secondary text-white"><i class="bi bi-building-fill-lock"></i></span>
+                                        <div class="text-start lh-sm">
+                                            <div class="fw-bold text-dark small">Quản lý (Chủ trọ) — Tòa C</div>
+                                            <small class="text-muted" style="font-size: 0.72rem;">quanly_c / 123456 &bull; Chỉ xem Tòa C</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge rounded-pill bg-secondary-subtle text-secondary">Tòa C</span>
                                 </button>
 
                                 <button type="button" class="demo-account-btn" onclick="fillLogin('khachthue1', '123456')">
@@ -148,10 +170,10 @@ $flashes = CoreHelper::getFlashes();
                                         <span class="demo-role-icon bg-success text-white"><i class="bi bi-house-heart-fill"></i></span>
                                         <div class="text-start lh-sm">
                                             <div class="fw-bold text-dark small">Khách thuê Phòng P101</div>
-                                            <small class="text-muted" style="font-size: 0.72rem;">khachthue1 / 123456</small>
+                                            <small class="text-muted" style="font-size: 0.72rem;">khachthue1 / 123456 &bull; Tổng quan &amp; Gia hạn HĐ</small>
                                         </div>
                                     </div>
-                                    <span class="badge rounded-pill bg-success-subtle text-success">Tra cứu HĐ</span>
+                                    <span class="badge rounded-pill bg-success-subtle text-success">Khách thuê</span>
                                 </button>
                             </div>
                         </div>

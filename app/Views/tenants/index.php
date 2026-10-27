@@ -29,7 +29,7 @@ use App\Helpers\CoreHelper;
                         <th>Họ và tên</th>
                         <th>CCCD / CMND</th>
                         <th>Điện thoại</th>
-                        <th>Phòng đang ở</th>
+                        <th>Phòng &amp; Thời hạn HĐ (Từ Mùng 01)</th>
                         <th>Quê quán / Nghề nghiệp</th>
                         <th>Tài khoản ĐN</th>
                         <th>Trạng thái</th>
@@ -53,8 +53,23 @@ use App\Helpers\CoreHelper;
                                 </td>
                                 <td>
                                     <?php if (!empty($t['current_room'])): ?>
-                                        <span class="badge bg-primary"><?= CoreHelper::e($t['current_room']) ?></span>
-                                        <small class="d-block text-muted"><?= CoreHelper::e($t['active_contract_code']) ?></small>
+                                        <div class="d-flex align-items-center gap-1 mb-1">
+                                            <span class="badge bg-primary"><?= CoreHelper::e($t['current_room']) ?></span>
+                                            <?php if (!empty($t['building_name'])): ?>
+                                                <span class="badge bg-light text-dark border"><?= CoreHelper::e($t['building_name']) ?></span>
+                                            <?php endif; ?>
+                                            <small class="text-muted fw-semibold"><?= CoreHelper::e($t['active_contract_code']) ?></small>
+                                        </div>
+                                        <?php if (!empty($t['contract_start_date']) && !empty($t['contract_end_date'])): ?>
+                                            <div class="small">
+                                                <?php if (!empty($t['contract_deposit_date']) && $t['contract_deposit_date'] !== $t['contract_start_date']): ?>
+                                                    <span class="text-muted">Cọc: <?= CoreHelper::formatDate($t['contract_deposit_date']) ?> &bull; </span>
+                                                <?php endif; ?>
+                                                <span class="text-dark fw-semibold"><?= CoreHelper::formatDate($t['contract_start_date']) ?></span>
+                                                <i class="bi bi-arrow-right mx-1 text-muted"></i>
+                                                <span class="text-danger fw-bold"><?= CoreHelper::formatDate($t['contract_end_date']) ?></span>
+                                            </div>
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <span class="text-muted small">Chưa xếp phòng</span>
                                     <?php endif; ?>

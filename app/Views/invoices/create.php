@@ -44,6 +44,15 @@ use App\Helpers\CoreHelper;
                     </div>
 
                     <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Loại hóa đơn</label>
+                        <select name="invoice_type" id="inv_type" class="form-select form-select-sm" onchange="onInvoiceTypeChange()">
+                            <option value="monthly">Hóa đơn Tiền phòng hàng tháng</option>
+                            <option value="move_in">Hóa đơn Vào ở &amp; Thu tiền cọc (1 tháng)</option>
+                            <option value="move_out">Hóa đơn Rời đi / Quyết toán tiền cọc</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
                         <label class="form-label small fw-semibold mb-1">Tiền thuê phòng (VNĐ)</label>
                         <input type="number" name="room_fee" id="inv_room_fee" class="form-control form-control-sm" value="0" oninput="previewInvoiceTotal()">
                     </div>
@@ -57,7 +66,7 @@ use App\Helpers\CoreHelper;
                             <input type="number" name="water_fee" id="inv_water_fee" class="form-control form-control-sm" value="<?= (float) ($prefillUtility['water_amount'] ?? 0) ?>" oninput="previewInvoiceTotal()">
                         </div>
                     </div>
-                    <div class="row g-2 mb-3">
+                    <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="form-label small fw-semibold mb-1">Phí dịch vụ (VNĐ)</label>
                             <input type="number" name="service_fee" id="inv_service_fee" class="form-control form-control-sm" value="<?= (float) ($prefillUtility['other_fee'] ?? 150000) ?>" oninput="previewInvoiceTotal()">
@@ -65,6 +74,16 @@ use App\Helpers\CoreHelper;
                         <div class="col-6">
                             <label class="form-label small fw-semibold mb-1">Giảm giá (VNĐ)</label>
                             <input type="number" name="discount" id="inv_discount" class="form-control form-control-sm" value="0" oninput="previewInvoiceTotal()">
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1 text-primary">Thu tiền cọc (VNĐ)</label>
+                            <input type="number" name="deposit_fee" id="inv_deposit_fee" class="form-control form-control-sm" value="0" oninput="previewInvoiceTotal()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-1 text-success">Hoàn trả cọc (VNĐ)</label>
+                            <input type="number" name="deposit_refund" id="inv_deposit_refund" class="form-control form-control-sm" value="0" oninput="previewInvoiceTotal()">
                         </div>
                     </div>
 
@@ -164,13 +183,31 @@ use App\Helpers\CoreHelper;
                             <?php else: ?>
                                 <?php foreach ($invoices as $inv): ?>
                                     <tr>
-                                        <td class="fw-bold"><?= CoreHelper::e($inv['invoice_code']) ?></td>
+                                        <td>
+                                            <div class="fw-bold"><?= CoreHelper::e($inv['invoice_code']) ?></div>
+                                            <?php $iType = $inv['invoice_type'] ?? 'monthly'; ?>
+                                            <?php if ($iType === 'move_in'): ?>
+                                                <span class="badge bg-info-subtle text-info">Vào ở &amp; Đặt cọc</span>
+                                            <?php elseif ($iType === 'move_out'): ?>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis">Rời đi / Trả phòng</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-light text-secondary border">Hàng tháng</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <span class="badge bg-dark"><?= CoreHelper::e($inv['room_number']) ?></span>
                                             <div class="text-muted"><?= CoreHelper::e($inv['tenant_name']) ?></div>
                                         </td>
                                         <td>T<?= (int) $inv['month'] ?>/<?= (int) $inv['year'] ?></td>
-                                        <td class="fw-bold"><?= CoreHelper::formatCurrency($inv['total_amount']) ?></td>
+                                        <td>
+                                            <div class="fw-bold"><?= CoreHelper::formatCurrency($inv['total_amount']) ?></div>
+                                            <?php if ((float) ($inv['deposit_fee'] ?? 0) > 0): ?>
+                                                <div class="small text-primary">+Cọc: <?= CoreHelper::formatCurrency($inv['deposit_fee']) ?></div>
+                                            <?php endif; ?>
+                                            <?php if ((float) ($inv['deposit_refund'] ?? 0) > 0): ?>
+                                                <div class="small text-success">-Hoàn cọc: <?= CoreHelper::formatCurrency($inv['deposit_refund']) ?></div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="text-success"><?= CoreHelper::formatCurrency($inv['paid_amount']) ?></td>
                                         <td class="fw-bold text-danger"><?= CoreHelper::formatCurrency($inv['remaining_amount']) ?></td>
                                         <td>
@@ -341,6 +378,25 @@ function openQuickPayModal(id, code, room, tenant, remaining) {
     document.getElementById('qp_room_tenant').textContent = 'Phòng ' + room + ' - ' + tenant;
     document.getElementById('qp_remaining_display').textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
     document.getElementById('qp_amount').value = remaining;
+}
+
+function onInvoiceTypeChange() {
+    const sel = document.getElementById('inv_contract_id');
+    const opt = sel && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex] : null;
+    const rent = opt ? parseFloat(opt.dataset.rent || 0) : parseFloat(document.getElementById('inv_room_fee').value || 0);
+    const iType = document.getElementById('inv_type').value;
+
+    if (iType === 'move_in') {
+        document.getElementById('inv_deposit_fee').value = rent;
+        document.getElementById('inv_deposit_refund').value = 0;
+    } else if (iType === 'move_out') {
+        document.getElementById('inv_deposit_fee').value = 0;
+        document.getElementById('inv_deposit_refund').value = rent;
+    } else {
+        document.getElementById('inv_deposit_fee').value = 0;
+        document.getElementById('inv_deposit_refund').value = 0;
+    }
+    previewInvoiceTotal();
 }
 </script>
 

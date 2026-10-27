@@ -13,7 +13,47 @@ CREATE DATABASE IF NOT EXISTS `quanly_nhatro`
 USE `quanly_nhatro`;
 
 -- ----------------------------------------------------------
--- 1. Bảng users (Tài khoản đăng nhập: Chủ trọ, Nhân viên, Khách thuê)
+-- 0. Bảng buildings (Tòa nhà - 3 tòa nhà) & room_types (Loại phòng)
+-- ----------------------------------------------------------
+DROP TABLE IF EXISTS `buildings`;
+CREATE TABLE `buildings` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `building_code` VARCHAR(20) NOT NULL UNIQUE,
+  `building_name` VARCHAR(120) NOT NULL,
+  `address` VARCHAR(255) DEFAULT NULL,
+  `manager_id` INT UNSIGNED DEFAULT NULL,
+  `description` TEXT DEFAULT NULL,
+  `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `buildings` (`id`, `building_code`, `building_name`, `address`, `manager_id`, `description`, `status`) VALUES
+(1, 'TOA-A', 'Tòa A - Smart Stay Sunrise', '128 Nguyễn Văn Cừ, Quận 5, TP.HCM', 2, 'Tòa nhà khu A gồm các phòng tiêu chuẩn, gác lửng và studio.', 'active'),
+(2, 'TOA-B', 'Tòa B - Smart Stay Emerald', '456 Lê Văn Sỹ, Quận 3, TP.HCM', 7, 'Tòa nhà khu B cao cấp, ban công thoáng mát, an ninh 24/7.', 'active'),
+(3, 'TOA-C', 'Tòa C - Smart Stay Horizon', '89 Hoàng Hoa Thám, Quận Bình Thạnh, TP.HCM', 8, 'Tòa nhà khu C mới xây dựng, đầy đủ nội thất thông minh.', 'active');
+
+DROP TABLE IF EXISTS `room_types`;
+CREATE TABLE `room_types` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `type_code` VARCHAR(30) NOT NULL UNIQUE,
+  `type_name` VARCHAR(100) NOT NULL,
+  `default_price` DECIMAL(12,2) NOT NULL DEFAULT 2500000.00,
+  `default_area` DECIMAL(6,2) NOT NULL DEFAULT 20.00,
+  `max_occupants` INT NOT NULL DEFAULT 2,
+  `description` TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `room_types` (`id`, `type_code`, `type_name`, `default_price`, `default_area`, `max_occupants`, `description`) VALUES
+(1, 'STANDARD', 'Phòng Tiêu Chuẩn', 2500000.00, 20.00, 2, 'Phòng khép kín tiêu chuẩn, có kệ bếp, WC riêng, phù hợp sinh viên & người đi làm.'),
+(2, 'LOFT', 'Phòng Gác Lửng (Duplex)', 2800000.00, 22.00, 3, 'Phòng có gác lửng rộng rãi, máy lạnh, nước nóng, tối ưu không gian sinh hoạt.'),
+(3, 'STUDIO', 'Phòng Studio Ban Công', 3200000.00, 25.00, 3, 'Phòng Studio cửa sổ lớn & ban công thoáng mát, trang bị máy lạnh, tủ lạnh.'),
+(4, 'DELUXE', 'Căn Hộ Mini Cao Cấp (VIP)', 3600000.00, 30.00, 4, 'Căn hộ dịch vụ đầy đủ nội thất: Máy lạnh, Tủ lạnh, Máy giặt riêng, Sofa, Ban công.');
+
+-- ----------------------------------------------------------
+-- 1. Bảng users (Tài khoản đăng nhập: Quản trị viên, Quản lý Tòa nhà, Khách thuê)
 -- Mật khẩu mặc định cho tất cả tài khoản mẫu: 123456
 -- ----------------------------------------------------------
 DROP TABLE IF EXISTS `users`;
@@ -25,18 +65,21 @@ CREATE TABLE `users` (
   `email` VARCHAR(100) DEFAULT NULL,
   `phone` VARCHAR(20) DEFAULT NULL,
   `role` ENUM('admin', 'staff', 'tenant') NOT NULL DEFAULT 'tenant',
+  `building_id` INT UNSIGNED DEFAULT NULL,
   `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `users` (`id`, `username`, `password`, `full_name`, `email`, `phone`, `role`, `status`) VALUES
-(1, 'admin', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Nguyễn Quản Lý (Chủ trọ)', 'admin@nhatro.vn', '0901234567', 'admin', 'active'),
-(2, 'nhanvien', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Lê Hoàng Nam (Quản lý viên)', 'nhanvien@nhatro.vn', '0902345678', 'staff', 'active'),
-(3, 'khachthue1', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Nguyễn Văn An', 'an.nguyen@gmail.com', '0912345001', 'tenant', 'active'),
-(4, 'khachthue2', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Trần Thị Bình', 'binh.tran@gmail.com', '0912345002', 'tenant', 'active'),
-(5, 'khachthue3', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Phạm Minh Tuấn', 'tuan.pham@gmail.com', '0912345003', 'tenant', 'active'),
-(6, 'khachthue4', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Võ Thị Thu Hà', 'ha.vo@gmail.com', '0912345004', 'tenant', 'active');
+INSERT INTO `users` (`id`, `username`, `password`, `full_name`, `email`, `phone`, `role`, `building_id`, `status`) VALUES
+(1, 'admin', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Nguyễn Quản Trị (Admin Hệ thống)', 'admin@nhatro.vn', '0901234567', 'admin', NULL, 'active'),
+(2, 'nhanvien', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Lê Hoàng Nam (Quản lý Tòa A)', 'nhanvien@nhatro.vn', '0902345678', 'staff', 1, 'active'),
+(3, 'khachthue1', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Nguyễn Văn An', 'an.nguyen@gmail.com', '0912345001', 'tenant', NULL, 'active'),
+(4, 'khachthue2', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Trần Thị Bình', 'binh.tran@gmail.com', '0912345002', 'tenant', NULL, 'active'),
+(5, 'khachthue3', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Phạm Minh Tuấn', 'tuan.pham@gmail.com', '0912345003', 'tenant', NULL, 'active'),
+(6, 'khachthue4', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Võ Thị Thu Hà', 'ha.vo@gmail.com', '0912345004', 'tenant', NULL, 'active'),
+(7, 'quanly_b', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Lê Hoàng Quản Lý Tòa B', 'quanlyb@nhatro.vn', '0903456789', 'staff', 2, 'active'),
+(8, 'quanly_c', '$2y$10$atVaTQP5WQPl.HxhWwodbOTHaPIDGDpw5uX5/6hi2CVcUhAp2iFRO', 'Phạm Minh Quản Lý Tòa C', 'quanlyc@nhatro.vn', '0904567890', 'staff', 3, 'active');
 
 -- ----------------------------------------------------------
 -- 2. Bảng rooms (Danh sách phòng trọ)
@@ -44,6 +87,8 @@ INSERT INTO `users` (`id`, `username`, `password`, `full_name`, `email`, `phone`
 DROP TABLE IF EXISTS `rooms`;
 CREATE TABLE `rooms` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `building_id` INT UNSIGNED NOT NULL DEFAULT 1,
+  `room_type_id` INT UNSIGNED NOT NULL DEFAULT 1,
   `room_number` VARCHAR(20) NOT NULL UNIQUE,
   `floor` INT NOT NULL DEFAULT 1,
   `area` DECIMAL(6,2) NOT NULL DEFAULT 20.00,
@@ -56,15 +101,21 @@ CREATE TABLE `rooms` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `rooms` (`id`, `room_number`, `floor`, `area`, `price`, `max_occupants`, `status`, `amenities`, `description`) VALUES
-(1, 'P101', 1, 22.00, 2800000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Gác lửng, WC riêng', 'Phòng tầng trệt thoáng mát, gần cổng chính'),
-(2, 'P102', 1, 25.00, 3200000.00, 3, 'occupied', 'Máy lạnh, Tủ lạnh, Nước nóng, Wifi, Ban công', 'Phòng rộng có cửa sổ lớn'),
-(3, 'P103', 1, 20.00, 2500000.00, 2, 'available', 'Quạt trần, Nước nóng, Wifi, Kệ bếp, WC riêng', 'Phòng tiêu chuẩn tiết kiệm'),
-(4, 'P201', 2, 24.00, 3000000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Ban công, Tủ quần áo', 'Phòng lầu 1 hướng Đông Nam'),
-(5, 'P202', 2, 24.00, 3000000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Ban công, Kệ bếp', 'Phòng lầu 1 yên tĩnh'),
-(6, 'P203', 2, 28.00, 3500000.00, 3, 'available', 'Máy lạnh, Tủ lạnh, Máy giặt, Nước nóng, Ban công', 'Phòng studio cao cấp đầy đủ nội thất'),
-(7, 'P301', 3, 22.00, 2700000.00, 2, 'maintenance', 'Máy lạnh, Nước nóng, Wifi, Sân thượng chung', 'Đang sơn sửa và bảo trì điều hòa'),
-(8, 'P302', 3, 25.00, 2900000.00, 2, 'available', 'Máy lạnh, Nước nóng, Wifi, Ban công thoáng', 'Phòng tầng 3 view đẹp');
+INSERT INTO `rooms` (`id`, `building_id`, `room_type_id`, `room_number`, `floor`, `area`, `price`, `max_occupants`, `status`, `amenities`, `description`) VALUES
+(1, 1, 2, 'P101', 1, 22.00, 2800000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Gác lửng, WC riêng', 'Phòng tầng trệt thoáng mát, gần cổng chính'),
+(2, 1, 3, 'P102', 1, 25.00, 3200000.00, 3, 'occupied', 'Máy lạnh, Tủ lạnh, Nước nóng, Wifi, Ban công', 'Phòng rộng có cửa sổ lớn'),
+(3, 1, 1, 'P103', 1, 20.00, 2500000.00, 2, 'available', 'Quạt trần, Nước nóng, Wifi, Kệ bếp, WC riêng', 'Phòng tiêu chuẩn tiết kiệm'),
+(4, 1, 3, 'P201', 2, 24.00, 3000000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Ban công, Tủ quần áo', 'Phòng lầu 1 hướng Đông Nam'),
+(5, 1, 3, 'P202', 2, 24.00, 3000000.00, 2, 'occupied', 'Máy lạnh, Nước nóng, Wifi, Ban công, Kệ bếp', 'Phòng lầu 1 yên tĩnh'),
+(6, 1, 4, 'P203', 2, 28.00, 3500000.00, 3, 'available', 'Máy lạnh, Tủ lạnh, Máy giặt, Nước nóng, Ban công', 'Phòng studio cao cấp đầy đủ nội thất'),
+(7, 1, 2, 'P301', 3, 22.00, 2700000.00, 2, 'maintenance', 'Máy lạnh, Nước nóng, Wifi, Sân thượng chung', 'Đang sơn sửa và bảo trì điều hòa'),
+(8, 1, 2, 'P302', 3, 25.00, 2900000.00, 2, 'available', 'Máy lạnh, Nước nóng, Wifi, Ban công thoáng', 'Phòng tầng 3 view đẹp'),
+(9, 2, 2, 'B101', 1, 24.00, 3000000.00, 2, 'available', 'Máy lạnh, Nước nóng, Wifi, Gác lửng, WC riêng', 'Phòng Tòa B tầng 1 thoáng mát'),
+(10, 2, 3, 'B102', 1, 26.00, 3300000.00, 3, 'available', 'Máy lạnh, Tủ lạnh, Nước nóng, Wifi, Ban công', 'Phòng Studio Tòa B có ban công'),
+(11, 2, 4, 'B201', 2, 30.00, 3700000.00, 3, 'available', 'Máy lạnh, Tủ lạnh, Máy giặt, Ban công', 'Căn hộ mini Tòa B lầu 2'),
+(12, 3, 1, 'C101', 1, 20.00, 2600000.00, 2, 'available', 'Máy lạnh, Nước nóng, Wifi, Kệ bếp, WC riêng', 'Phòng tiêu chuẩn Tòa C mới xây'),
+(13, 3, 3, 'C102', 1, 25.00, 3200000.00, 3, 'available', 'Máy lạnh, Tủ lạnh, Nước nóng, Ban công', 'Phòng Studio Tòa C hướng công viên'),
+(14, 3, 4, 'C201', 2, 30.00, 3800000.00, 4, 'available', 'Full nội thất cao cấp, Ban công lớn', 'Căn hộ VIP Tòa C tầng 2');
 
 -- ----------------------------------------------------------
 -- 3. Bảng tenants (Khách thuê trọ)
@@ -107,11 +158,17 @@ CREATE TABLE `contracts` (
   `start_date` DATE NOT NULL,
   `end_date` DATE NOT NULL,
   `deposit_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `deposit_status` ENUM('held', 'refunded', 'forfeited') NOT NULL DEFAULT 'held',
   `monthly_rent` DECIMAL(12,2) NOT NULL,
   `electricity_rate` DECIMAL(10,2) NOT NULL DEFAULT 3500.00,
   `water_rate` DECIMAL(10,2) NOT NULL DEFAULT 15000.00,
   `service_fee` DECIMAL(10,2) NOT NULL DEFAULT 150000.00,
   `status` ENUM('active', 'expired', 'terminated') NOT NULL DEFAULT 'active',
+  `terminated_at` DATE DEFAULT NULL,
+  `termination_reason` VARCHAR(255) DEFAULT NULL,
+  `renewal_status` ENUM('none', 'notified', 'renewed', 'declined', 'auto_no_renew') NOT NULL DEFAULT 'none',
+  `renewal_months` INT NOT NULL DEFAULT 6,
+  `renewal_responded_at` DATETIME DEFAULT NULL,
   `notes` TEXT DEFAULT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -119,12 +176,12 @@ CREATE TABLE `contracts` (
   CONSTRAINT `fk_contracts_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `contracts` (`id`, `contract_code`, `room_id`, `tenant_id`, `start_date`, `end_date`, `deposit_amount`, `monthly_rent`, `electricity_rate`, `water_rate`, `service_fee`, `status`, `notes`) VALUES
-(1, 'HD-2026-001', 1, 1, '2026-01-01', '2026-12-31', 2800000.00, 2800000.00, 3500.00, 15000.00, 150000.00, 'active', 'Thanh toán từ ngày 01 đến 05 hàng tháng'),
-(2, 'HD-2026-002', 2, 2, '2026-02-01', '2027-01-31', 3200000.00, 3200000.00, 3500.00, 15000.00, 150000.00, 'active', 'Ở 2 người, có gửi 1 xe máy'),
-(3, 'HD-2026-003', 4, 3, '2026-03-01', '2026-11-05', 3000000.00, 3000000.00, 3500.00, 15000.00, 150000.00, 'active', 'Sắp hết hạn hợp đồng, cần liên hệ gia hạn'),
-(4, 'HD-2026-004', 5, 4, '2026-04-01', '2027-03-31', 3000000.00, 3000000.00, 3500.00, 15000.00, 150000.00, 'active', 'Sinh viên thuê dài hạn'),
-(5, 'HD-2025-009', 3, 5, '2025-06-01', '2026-05-31', 2500000.00, 2500000.00, 3500.00, 15000.00, 120000.00, 'terminated', 'Đã thanh lý hợp đồng và hoàn trả cọc');
+INSERT INTO `contracts` (`id`, `contract_code`, `room_id`, `tenant_id`, `start_date`, `end_date`, `deposit_amount`, `deposit_status`, `monthly_rent`, `electricity_rate`, `water_rate`, `service_fee`, `status`, `renewal_status`, `notes`) VALUES
+(1, 'HD-2026-001', 1, 1, '2026-01-01', DATE_ADD(CURDATE(), INTERVAL 20 DAY), 2800000.00, 'held', 2800000.00, 3500.00, 15000.00, 150000.00, 'active', 'notified', 'Thanh toán từ ngày 01 đến 05 hàng tháng - Sắp hết hạn trong 20 ngày'),
+(2, 'HD-2026-002', 2, 2, '2026-02-01', '2027-01-31', 3200000.00, 'held', 3200000.00, 3500.00, 15000.00, 150000.00, 'active', 'none', 'Ở 2 người, có gửi 1 xe máy'),
+(3, 'HD-2026-003', 4, 3, '2026-03-01', '2026-11-05', 3000000.00, 'held', 3000000.00, 3500.00, 15000.00, 150000.00, 'active', 'notified', 'Sắp hết hạn hợp đồng, cần liên hệ gia hạn'),
+(4, 'HD-2026-004', 5, 4, '2026-04-01', '2027-03-31', 3000000.00, 'held', 3000000.00, 3500.00, 15000.00, 150000.00, 'active', 'none', 'Sinh viên thuê dài hạn'),
+(5, 'HD-2025-009', 3, 5, '2025-06-01', '2026-05-31', 2500000.00, 'refunded', 2500000.00, 3500.00, 15000.00, 120000.00, 'terminated', 'none', 'Đã thanh lý hợp đồng đúng hạn và hoàn trả cọc');
 
 -- ----------------------------------------------------------
 -- 5. Bảng utilities (Chỉ số Điện & Nước hàng tháng)
@@ -174,6 +231,7 @@ DROP TABLE IF EXISTS `invoices`;
 CREATE TABLE `invoices` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `invoice_code` VARCHAR(30) NOT NULL UNIQUE,
+  `invoice_type` ENUM('monthly', 'move_in', 'move_out') NOT NULL DEFAULT 'monthly',
   `contract_id` INT UNSIGNED NOT NULL,
   `room_id` INT UNSIGNED NOT NULL,
   `tenant_id` INT UNSIGNED NOT NULL,
@@ -184,6 +242,8 @@ CREATE TABLE `invoices` (
   `electric_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `water_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `service_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `deposit_fee` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `deposit_refund` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `discount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `paid_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,

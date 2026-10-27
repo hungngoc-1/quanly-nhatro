@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Config\Database;
+use App\Helpers\CoreHelper;
 use PDO;
 
 class PaymentModel
@@ -24,6 +25,10 @@ class PaymentModel
 
     public function getAll(array $filters = []): array
     {
+        $buildingId = array_key_exists('building_id', $filters)
+            ? ($filters['building_id'] !== null && $filters['building_id'] !== '' ? (int) $filters['building_id'] : null)
+            : CoreHelper::currentBuildingId();
+
         $sql = "
             SELECT p.*,
                    inv.invoice_code,
@@ -31,16 +36,24 @@ class PaymentModel
                    inv.year,
                    inv.total_amount AS invoice_total,
                    r.room_number,
+                   r.building_id,
+                   b.building_name,
                    t.full_name AS tenant_name,
                    u.full_name AS receiver_name
             FROM payments p
             INNER JOIN invoices inv ON inv.id = p.invoice_id
             INNER JOIN rooms r ON r.id = inv.room_id
+            LEFT JOIN buildings b ON b.id = r.building_id
             INNER JOIN tenants t ON t.id = inv.tenant_id
             LEFT JOIN users u ON u.id = p.received_by
             WHERE 1=1
         ";
         $params = [];
+
+        if ($buildingId !== null && $buildingId > 0) {
+            $sql .= " AND r.building_id = :building_id";
+            $params['building_id'] = $buildingId;
+        }
 
         if (!empty($filters['payment_method'])) {
             $sql .= " AND p.payment_method = :payment_method";

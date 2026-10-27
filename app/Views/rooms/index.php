@@ -32,19 +32,80 @@ try {
         </a>
     </div>
 
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5" type="button" data-bs-toggle="collapse" data-bs-target="#roomTypesPanel" aria-expanded="false">
+            <i class="bi bi-tags-fill me-1"></i>Loại phòng (<?= count($roomTypes ?? []) ?>)
+        </button>
         <button class="btn btn-sm <?= $pendingRoomBookings > 0 ? 'btn-danger' : 'btn-outline-secondary' ?> rounded-pill px-3 py-1.5" type="button" data-bs-toggle="collapse" data-bs-target="#bookingRequestsPanel" aria-expanded="<?= $pendingRoomBookings > 0 ? 'true' : 'false' ?>">
-            <i class="bi bi-bell-fill me-1"></i>Đặt trước chờ xử lý (<?= $pendingRoomBookings ?>)
+            <i class="bi bi-bell-fill me-1"></i>Đặt trước (<?= $pendingRoomBookings ?>)
         </button>
         <a href="<?= CoreHelper::url('/booking/history') ?>" class="btn btn-sm btn-outline-dark rounded-pill px-3 py-1.5">
-            <i class="bi bi-clock-history me-1"></i>Lịch sử đặt phòng (<?= $historyRoomBookingsCount ?>)
-        </a>
-        <a href="<?= CoreHelper::url('/cho-thue') ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5">
-            <i class="bi bi-badge-vr-fill text-danger me-1"></i>Xem Web 360°
+            <i class="bi bi-clock-history me-1"></i>Lịch sử (<?= $historyRoomBookingsCount ?>)
         </a>
         <button type="button" class="btn btn-sm btn-gradient-primary rounded-pill px-3 py-1.5" data-bs-toggle="modal" data-bs-target="#roomModal" onclick="openCreateRoomModal()">
-            <i class="bi bi-plus-circle-fill me-1"></i>Thêm Phòng mới
+            <i class="bi bi-plus-circle-fill me-1"></i>Thêm Phòng
         </button>
+    </div>
+</div>
+
+<!-- BẢNG LOẠI PHÒNG (room_types - thu gọn mặc định để không rối mắt, bấm nút "Loại phòng" để mở) -->
+<div class="collapse mb-3" id="roomTypesPanel">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary"><i class="bi bi-tags-fill me-1"></i>Danh mục Loại phòng</span>
+                <span class="fw-bold text-dark" style="font-size: 0.85rem;">Bảng Loại Phòng Trọ (<?= count($roomTypes ?? []) ?> loại phòng)</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#roomTypeModal" onclick="openCreateRoomTypeModal()">
+                <i class="bi bi-plus-lg me-1"></i>Thêm Loại phòng
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã loại</th>
+                            <th>Tên loại phòng</th>
+                            <th>Giá thuê chuẩn</th>
+                            <th>Diện tích / Tối đa</th>
+                            <th>Mô tả &amp; Tiện nghi</th>
+                            <th>Số phòng</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($roomTypes)): ?>
+                            <tr><td colspan="7" class="text-center py-3 text-muted">Chưa có loại phòng nào.</td></tr>
+                        <?php else: ?>
+                            <?php foreach ($roomTypes as $rt): ?>
+                                <?php $rtJson = htmlspecialchars(json_encode($rt, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>
+                                <tr>
+                                    <td><span class="badge bg-dark"><?= CoreHelper::e($rt['type_code']) ?></span></td>
+                                    <td class="fw-bold text-primary"><?= CoreHelper::e($rt['type_name']) ?></td>
+                                    <td class="fw-bold text-danger"><?= CoreHelper::formatCurrency($rt['default_price']) ?>/tháng</td>
+                                    <td><?= (float) $rt['default_area'] ?>m&sup2; &bull; <?= (int) $rt['max_occupants'] ?> người</td>
+                                    <td class="text-muted" style="max-width: 280px;"><?= CoreHelper::e($rt['description'] ?: 'Tiêu chuẩn') ?></td>
+                                    <td><span class="badge bg-primary-subtle text-primary"><?= (int) ($rt['room_count'] ?? 0) ?> phòng</span></td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" onclick="openEditRoomTypeModal(<?= $rtJson ?>)">
+                                            <i class="bi bi-pencil-square"></i> Sửa
+                                        </button>
+                                        <?php if (CoreHelper::hasRole('admin')): ?>
+                                            <form method="POST" action="<?= CoreHelper::url('/room-types/delete') ?>" class="d-inline" onsubmit="return confirm('Xóa loại phòng <?= CoreHelper::e($rt['type_name']) ?>?');">
+                                                <?= CoreHelper::csrfField() ?>
+                                                <input type="hidden" name="id" value="<?= (int) $rt['id'] ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -131,11 +192,21 @@ try {
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2-5 px-3">
         <form method="GET" action="<?= CoreHelper::url('/rooms') ?>" class="row g-2 align-items-center">
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
                     <input type="text" name="keyword" value="<?= CoreHelper::e($filters['keyword'] ?? '') ?>" class="form-control border-start-0" placeholder="Tìm mã phòng, tiện nghi, tên khách thuê...">
                 </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <select name="room_type_id" class="form-select form-select-sm">
+                    <option value="">-- Mọi loại phòng --</option>
+                    <?php foreach ($roomTypes ?? [] as $rt): ?>
+                        <option value="<?= (int) $rt['id'] ?>" <?= ((string) ($filters['room_type_id'] ?? '') === (string) $rt['id']) ? 'selected' : '' ?>>
+                            <?= CoreHelper::e($rt['type_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-6 col-md-2">
                 <select name="floor" class="form-select form-select-sm">
@@ -145,7 +216,7 @@ try {
                     <?php endfor; ?>
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <select name="status" class="form-select form-select-sm">
                     <option value="">-- Mọi trạng thái --</option>
                     <option value="available" <?= ($filters['status'] ?? '') === 'available' ? 'selected' : '' ?>>Phòng trống</option>
@@ -153,7 +224,7 @@ try {
                     <option value="maintenance" <?= ($filters['status'] ?? '') === 'maintenance' ? 'selected' : '' ?>>Đang bảo trì</option>
                 </select>
             </div>
-            <div class="col-12 col-md-2 d-flex gap-1.5">
+            <div class="col-6 col-md-2 d-flex gap-1.5">
                 <button type="submit" class="btn btn-sm btn-primary flex-grow-1"><i class="bi bi-search me-1"></i>Lọc</button>
                 <a href="<?= CoreHelper::url('/rooms') ?>" class="btn btn-sm btn-outline-secondary">Xóa</a>
             </div>
@@ -190,9 +261,14 @@ try {
                                     <?= CoreHelper::e($room['room_number']) ?>
                                 </div>
                                 <div class="min-w-0">
-                                    <div class="fw-bold text-dark text-truncate lh-sm">Phòng <?= CoreHelper::e($room['room_number']) ?></div>
+                                    <div class="fw-bold text-dark text-truncate lh-sm">
+                                        Phòng <?= CoreHelper::e($room['room_number']) ?>
+                                        <?php if (!empty($room['building_code'])): ?>
+                                            <span class="badge bg-dark-subtle text-dark ms-1" style="font-size: 0.65rem;"><?= CoreHelper::e($room['building_code']) ?></span>
+                                        <?php endif; ?>
+                                    </div>
                                     <div class="text-muted text-nowrap" style="font-size: 0.72rem;">
-                                        Tầng <?= (int) $room['floor'] ?> &bull; <?= (float) $room['area'] ?>m&sup2; &bull; <i class="bi bi-people"></i> <?= (int) $room['max_occupants'] ?>
+                                        Tầng <?= (int) $room['floor'] ?> &bull; <?= (float) $room['area'] ?>m&sup2; &bull; <span class="text-primary fw-semibold"><?= CoreHelper::e($room['room_type_name'] ?? 'Tiêu chuẩn') ?></span>
                                     </div>
                                 </div>
                             </div>
@@ -285,6 +361,30 @@ try {
             <div class="modal-body">
                 <div class="row g-2.5">
                     <div class="col-md-6">
+                        <label class="form-label small fw-semibold mb-1">Tòa nhà <span class="text-danger">*</span></label>
+                        <?php $currBldId = CoreHelper::currentBuildingId(); ?>
+                        <select name="building_id" id="room_building_id" class="form-select form-select-sm" <?= CoreHelper::hasRole(['staff']) ? 'disabled' : '' ?>>
+                            <?php foreach ($buildings ?? [] as $bld): ?>
+                                <option value="<?= (int) $bld['id'] ?>" <?= ((int) ($currBldId ?? 1) === (int) $bld['id']) ? 'selected' : '' ?>>
+                                    <?= CoreHelper::e($bld['building_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold mb-1">Loại phòng <span class="text-danger">*</span></label>
+                        <select name="room_type_id" id="room_type_id" class="form-select form-select-sm" onchange="onRoomTypeSelectChange(this)">
+                            <?php foreach ($roomTypes ?? [] as $rt): ?>
+                                <option value="<?= (int) $rt['id'] ?>"
+                                        data-price="<?= (float) $rt['default_price'] ?>"
+                                        data-area="<?= (float) $rt['default_area'] ?>"
+                                        data-occupants="<?= (int) $rt['max_occupants'] ?>">
+                                    <?= CoreHelper::e($rt['type_name']) ?> (<?= CoreHelper::formatCurrency($rt['default_price']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label small fw-semibold mb-1">Mã phòng <span class="text-danger">*</span></label>
                         <input type="text" name="room_number" id="room_number" class="form-control form-control-sm" placeholder="VD: P104" required>
                     </div>
@@ -330,7 +430,61 @@ try {
     </div>
 </div>
 
+<!-- Modal Thêm / Sửa Loại phòng -->
+<div class="modal fade" id="roomTypeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" id="roomTypeForm" action="<?= CoreHelper::url('/room-types/store') ?>" class="modal-content">
+            <?= CoreHelper::csrfField() ?>
+            <input type="hidden" name="id" id="rt_id">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold" id="roomTypeModalTitle">Thêm Loại phòng mới</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2.5">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold mb-1">Mã loại phòng *</label>
+                        <input type="text" name="type_code" id="rt_type_code" class="form-control form-control-sm" placeholder="VD: PENTHOUSE" required>
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label small fw-semibold mb-1">Tên loại phòng *</label>
+                        <input type="text" name="type_name" id="rt_type_name" class="form-control form-control-sm" placeholder="VD: Phòng Penthouse Sân vườn" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold mb-1">Giá thuê tham chiếu (VNĐ) *</label>
+                        <input type="number" step="50000" name="default_price" id="rt_default_price" class="form-control form-control-sm" value="3000000" min="100000" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Diện tích (m&sup2;)</label>
+                        <input type="number" step="0.5" name="default_area" id="rt_default_area" class="form-control form-control-sm" value="25" min="5">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Số người</label>
+                        <input type="number" name="max_occupants" id="rt_max_occupants" class="form-control form-control-sm" value="2" min="1">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold mb-1">Mô tả &amp; Tiện nghi tiêu chuẩn</label>
+                        <textarea name="description" id="rt_description" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-sm btn-primary">Lưu Loại phòng</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+function onRoomTypeSelectChange(selectEl) {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!opt || document.getElementById('room_id').value !== '') return;
+    if (opt.dataset.price) document.getElementById('room_price').value = opt.dataset.price;
+    if (opt.dataset.area) document.getElementById('room_area').value = opt.dataset.area;
+    if (opt.dataset.occupants) document.getElementById('room_max_occupants').value = opt.dataset.occupants;
+}
+
 function openCreateRoomModal() {
     document.getElementById('roomModalTitle').innerText = 'Thêm Phòng trọ mới';
     document.getElementById('roomForm').action = '<?= CoreHelper::url('/rooms/store') ?>';
@@ -342,6 +496,12 @@ function openEditRoomModal(room) {
     document.getElementById('roomModalTitle').innerText = 'Cập nhật Phòng ' + room.room_number;
     document.getElementById('roomForm').action = '<?= CoreHelper::url('/rooms/update') ?>';
     document.getElementById('room_id').value = room.id;
+    if (document.getElementById('room_building_id') && room.building_id) {
+        document.getElementById('room_building_id').value = room.building_id;
+    }
+    if (document.getElementById('room_type_id') && room.room_type_id) {
+        document.getElementById('room_type_id').value = room.room_type_id;
+    }
     document.getElementById('room_number').value = room.room_number;
     document.getElementById('room_floor').value = room.floor;
     document.getElementById('room_area').value = room.area;
@@ -351,5 +511,25 @@ function openEditRoomModal(room) {
     document.getElementById('room_amenities').value = room.amenities || '';
     document.getElementById('room_description').value = room.description || '';
     bootstrap.Modal.getOrCreateInstance(document.getElementById('roomModal')).show();
+}
+
+function openCreateRoomTypeModal() {
+    document.getElementById('roomTypeModalTitle').innerText = 'Thêm Loại phòng mới';
+    document.getElementById('roomTypeForm').action = '<?= CoreHelper::url('/room-types/store') ?>';
+    document.getElementById('roomTypeForm').reset();
+    document.getElementById('rt_id').value = '';
+}
+
+function openEditRoomTypeModal(rt) {
+    document.getElementById('roomTypeModalTitle').innerText = 'Cập nhật Loại phòng: ' + rt.type_name;
+    document.getElementById('roomTypeForm').action = '<?= CoreHelper::url('/room-types/update') ?>';
+    document.getElementById('rt_id').value = rt.id;
+    document.getElementById('rt_type_code').value = rt.type_code;
+    document.getElementById('rt_type_name').value = rt.type_name;
+    document.getElementById('rt_default_price').value = rt.default_price;
+    document.getElementById('rt_default_area').value = rt.default_area;
+    document.getElementById('rt_max_occupants').value = rt.max_occupants;
+    document.getElementById('rt_description').value = rt.description || '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('roomTypeModal')).show();
 }
 </script>
