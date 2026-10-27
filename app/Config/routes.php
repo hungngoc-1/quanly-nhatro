@@ -6,6 +6,7 @@ use App\Controllers\ContractController;
 use App\Controllers\DashboardController;
 use App\Controllers\InvoiceController;
 use App\Controllers\PaymentController;
+use App\Controllers\PublicController;
 use App\Controllers\ReportController;
 use App\Controllers\RoomController;
 use App\Controllers\TenantController;
@@ -16,6 +17,15 @@ use App\Controllers\UtilityController;
  * Cú pháp: 'METHOD /path' => [Controller::class, 'action', ['roles' => [...]]]
  */
 return [
+    // Trang Công khai Giới thiệu & Cho thuê Phòng Trống + Xem Phòng 360° (Mọi người đều xem được)
+    'GET /cho-thue'               => [PublicController::class, 'index', []],
+    'GET /trang-chu'              => [PublicController::class, 'index', []],
+    'GET /xem-phong'              => [PublicController::class, 'index', []],
+    'POST /booking/request'       => [PublicController::class, 'bookRoom', []],
+    'GET /booking/history'        => [PublicController::class, 'bookingHistory', ['roles' => ['admin', 'staff']]],
+    'POST /booking/status'        => [PublicController::class, 'updateBookingStatus', ['roles' => ['admin', 'staff']]],
+    'POST /booking/delete'        => [PublicController::class, 'deleteBooking', ['roles' => ['admin', 'staff']]],
+
     // Xác thực (Auth)
     'GET /login'                  => [AuthController::class, 'loginForm', []],
     'POST /login'                 => [AuthController::class, 'login', []],

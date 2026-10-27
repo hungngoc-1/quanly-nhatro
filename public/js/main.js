@@ -1,15 +1,12 @@
 /**
- * Hệ thống Quản lý Nhà trọ - Main Javascript (v2.0)
+ * Hệ thống Quản lý Nhà trọ - Main Javascript (v5.0)
  */
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Tự động áp dụng hiệu ứng Animation Bo góc (glow-border-card) & Staggered Reveal cho toàn bộ Card
-    const cards = document.querySelectorAll('.card');
-    cards.forEach((card, index) => {
-        if (!card.classList.contains('invoice-print-box')) {
-            card.classList.add('glow-border-card');
+    // 1. Đưa tất cả Bootstrap Modal ra trực tiếp dưới <body> để tránh bị lớp phủ .modal-backdrop che khuất
+    document.querySelectorAll('.modal').forEach(function (modalEl) {
+        if (modalEl.parentElement !== document.body) {
+            document.body.appendChild(modalEl);
         }
-        card.classList.add('animate-stagger');
-        card.style.animationDelay = `${Math.min(index * 0.06, 0.45)}s`;
     });
 
     // 2. Khởi tạo tính tổng hóa đơn nếu đang ở trang lập hóa đơn

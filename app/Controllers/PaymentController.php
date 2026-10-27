@@ -20,24 +20,12 @@ class PaymentController
 
     public function index(): void
     {
-        $filters = [
-            'payment_method' => $_GET['payment_method'] ?? '',
-            'keyword'        => $_GET['keyword'] ?? '',
-        ];
-
-        $payments = $this->paymentModel->getAll($filters);
-        $unpaidInvoices = $this->invoiceModel->getUnpaidInvoices();
-
-        CoreHelper::view('payments/index', [
-            'pageTitle'      => 'Quản lý Thu tiền & Lịch sử Thanh toán',
-            'payments'       => $payments,
-            'unpaidInvoices' => $unpaidInvoices,
-            'filters'        => $filters,
-        ]);
+        CoreHelper::redirect('/invoices/create');
     }
 
     public function store(): void
     {
+        $fallbackUrl = $_SERVER['HTTP_REFERER'] ?? '/invoices/create';
         $validator = Validator::make($_POST, [
             'invoice_id'     => 'required|integer|min:1',
             'amount'         => 'required|numeric|min:1000',
@@ -50,14 +38,14 @@ class PaymentController
 
         if ($validator->fails()) {
             CoreHelper::setFlash('danger', $validator->firstError());
-            CoreHelper::redirect('/payments');
+            CoreHelper::redirect($fallbackUrl);
         }
 
         $invoiceId = (int) $_POST['invoice_id'];
         $invoice = $this->invoiceModel->findById($invoiceId);
         if (!$invoice) {
             CoreHelper::setFlash('danger', 'Không tìm thấy hóa đơn cần thanh toán.');
-            CoreHelper::redirect('/payments');
+            CoreHelper::redirect($fallbackUrl);
         }
 
         $user = CoreHelper::user();
@@ -71,13 +59,13 @@ class PaymentController
             'notes'           => $_POST['notes'] ?? '',
         ]);
 
-        CoreHelper::setFlash('success', 'Đã ghi nhận thanh toán cho hóa đơn ' . $invoice['invoice_code'] . '.');
+        CoreHelper::setFlash('success', 'Đã thu tiền thành công cho hóa đơn ' . $invoice['invoice_code'] . '.');
 
         if (!empty($_POST['redirect_to_detail'])) {
             CoreHelper::redirect('/invoices/detail', ['id' => $invoiceId]);
         }
 
-        CoreHelper::redirect('/payments');
+        CoreHelper::redirect($fallbackUrl);
     }
 
     public function delete(): void
@@ -88,6 +76,6 @@ class PaymentController
         } else {
             CoreHelper::setFlash('danger', 'Không tìm thấy phiếu thu cần xóa.');
         }
-        CoreHelper::redirect('/payments');
+        CoreHelper::redirect($_SERVER['HTTP_REFERER'] ?? '/invoices/create');
     }
 }

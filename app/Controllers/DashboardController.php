@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Helpers\CoreHelper;
+use App\Models\BookingModel;
 use App\Models\InvoiceModel;
 use App\Models\ReportModel;
 use App\Models\TenantModel;
@@ -32,20 +33,25 @@ class DashboardController
         $year = (int) ($_GET['year'] ?? date('Y'));
         $reportModel = new ReportModel();
         $invoiceModel = new InvoiceModel();
+        $bookingModel = new BookingModel();
 
         $stats = $reportModel->getOverviewStats($year);
         $monthlyRevenue = $reportModel->getMonthlyRevenue($year);
         $expiringContracts = $reportModel->getExpiringContracts(60);
         $unpaidInvoices = $invoiceModel->getUnpaidInvoices();
+        $pendingBookings = $bookingModel->getPending(10);
+        $historyBookingsCount = $bookingModel->getHistoryCount();
 
         CoreHelper::view('dashboard/index', [
-            'pageTitle'         => 'Tổng quan Quản lý Nhà trọ',
-            'isTenant'          => false,
-            'year'              => $year,
-            'stats'             => $stats,
-            'monthlyRevenue'    => $monthlyRevenue,
-            'expiringContracts' => $expiringContracts,
-            'unpaidInvoices'    => $unpaidInvoices,
+            'pageTitle'            => 'Tổng quan Quản lý Nhà trọ',
+            'isTenant'             => false,
+            'year'                 => $year,
+            'stats'                => $stats,
+            'monthlyRevenue'       => $monthlyRevenue,
+            'expiringContracts'    => $expiringContracts,
+            'unpaidInvoices'       => $unpaidInvoices,
+            'pendingBookings'      => $pendingBookings,
+            'historyBookingsCount' => $historyBookingsCount,
         ]);
     }
 }

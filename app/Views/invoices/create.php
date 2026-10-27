@@ -114,11 +114,18 @@ use App\Helpers\CoreHelper;
         </div>
     </div>
 
-    <!-- Cột phải: Danh sách Hóa đơn -->
+    <!-- Cột phải: Bảng Hóa đơn & Thu tiền tích hợp -->
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-list-ul text-primary me-2"></i>Danh sách Hóa đơn đã phát hành</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Danh sách Hóa đơn &amp; Thu tiền</h6>
+                    <?php if (!empty($payments)): ?>
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0 px-2.5" style="font-size: 0.72rem;" data-bs-toggle="collapse" data-bs-target="#paymentHistoryCollapse">
+                            <i class="bi bi-clock-history me-1"></i>Lịch sử phiếu thu (<?= count($payments) ?>)
+                        </button>
+                    <?php endif; ?>
+                </div>
                 <form method="GET" action="<?= CoreHelper::url('/invoices/create') ?>" class="d-flex gap-2 flex-wrap">
                     <select name="month" class="form-select form-select-sm" style="width: 110px;">
                         <option value="">Tất cả tháng</option>
@@ -148,7 +155,7 @@ use App\Helpers\CoreHelper;
                                 <th>Đã đóng</th>
                                 <th>Còn nợ</th>
                                 <th>Trạng thái</th>
-                                <th class="text-end">Thao tác</th>
+                                <th class="text-end">Thao tác &amp; Thu tiền</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -179,6 +186,16 @@ use App\Helpers\CoreHelper;
                                         </td>
                                         <td class="text-end">
                                             <div class="d-inline-flex gap-1">
+                                                <?php if ((float) $inv['remaining_amount'] > 0): ?>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-success"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#quickPayModal"
+                                                            onclick="openQuickPayModal(<?= (int) $inv['id'] ?>, '<?= CoreHelper::e($inv['invoice_code']) ?>', '<?= CoreHelper::e($inv['room_number']) ?>', '<?= CoreHelper::e($inv['tenant_name']) ?>', <?= (float) $inv['remaining_amount'] ?>)"
+                                                            title="Ghi nhận thu tiền ngay cho hóa đơn này">
+                                                        <i class="bi bi-cash-coin me-1"></i>Thu tiền
+                                                    </button>
+                                                <?php endif; ?>
                                                 <a href="<?= CoreHelper::url('/invoices/detail', ['id' => $inv['id']]) ?>" class="btn btn-sm btn-outline-primary" title="Xem & In hóa đơn">
                                                     <i class="bi bi-printer"></i> Chi tiết
                                                 </a>
@@ -199,8 +216,133 @@ use App\Helpers\CoreHelper;
                 </div>
             </div>
         </div>
+
+        <!-- Bảng Lịch sử Phiếu thu tích hợp ngay bên dưới (Mở ra khi cần đối soát) -->
+        <?php if (!empty($payments)): ?>
+            <?php
+            $methodLabels = [
+                'bank_transfer' => ['text' => 'Chuyển khoản', 'class' => 'bg-primary'],
+                'cash'          => ['text' => 'Tiền mặt', 'class' => 'bg-success'],
+                'momo'          => ['text' => 'Ví MoMo', 'class' => 'bg-danger'],
+                'vnpay'         => ['text' => 'VNPay', 'class' => 'bg-info text-dark'],
+            ];
+            ?>
+            <div class="collapse" id="paymentHistoryCollapse">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-2-5 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-success"><i class="bi bi-check2-all me-2"></i>Lịch sử Phiếu thu đã ghi nhận</h6>
+                        <span class="small text-muted">Tự động cập nhật vào công nợ Hóa đơn</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mã Phiếu</th>
+                                        <th>Hóa đơn</th>
+                                        <th>Phòng / Khách</th>
+                                        <th>Số tiền thu</th>
+                                        <th>Hình thức</th>
+                                        <th>Thời gian</th>
+                                        <th class="text-end">Hủy</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach (array_slice($payments, 0, 15) as $p): ?>
+                                        <?php $mBadge = $methodLabels[$p['payment_method']] ?? ['text' => $p['payment_method'], 'class' => 'bg-secondary']; ?>
+                                        <tr>
+                                            <td class="fw-bold"><?= CoreHelper::e($p['payment_code']) ?></td>
+                                            <td><?= CoreHelper::e($p['invoice_code']) ?></td>
+                                            <td><span class="badge bg-dark"><?= CoreHelper::e($p['room_number']) ?></span> <?= CoreHelper::e($p['tenant_name']) ?></td>
+                                            <td class="fw-bold text-success">+ <?= CoreHelper::formatCurrency($p['amount']) ?></td>
+                                            <td><span class="badge <?= $mBadge['class'] ?>"><?= $mBadge['text'] ?></span></td>
+                                            <td class="text-muted"><?= CoreHelper::formatDate($p['payment_date'], 'd/m/Y H:i') ?></td>
+                                            <td class="text-end">
+                                                <?php if (CoreHelper::hasRole('admin')): ?>
+                                                    <form method="POST" action="<?= CoreHelper::url('/payments/delete') ?>" class="d-inline" onsubmit="return confirm('Hủy phiếu thu này và hoàn lại công nợ cho hóa đơn?');">
+                                                        <?= CoreHelper::csrfField() ?>
+                                                        <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1.5"><i class="bi bi-trash"></i></button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
+
+<!-- Modal Thu Tiền Nhanh tích hợp trực tiếp trong bảng Hóa đơn -->
+<div class="modal fade" id="quickPayModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="<?= CoreHelper::url('/payments/store') ?>" class="modal-content">
+            <?= CoreHelper::csrfField() ?>
+            <input type="hidden" name="invoice_id" id="qp_invoice_id">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="bi bi-cash-coin text-success me-2"></i>Thu tiền Hóa đơn <span id="qp_invoice_code" class="text-primary"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-2.5 mb-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="small text-muted">Phòng / Khách thuê</div>
+                        <div class="fw-bold text-dark" id="qp_room_tenant">—</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Còn phải thu</div>
+                        <div class="fw-bold text-danger fs-6" id="qp_remaining_display">0 đ</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Số tiền thực thu (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="number" name="amount" id="qp_amount" class="form-control fw-bold text-success" min="1000" required>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Hình thức thanh toán</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="bank_transfer">Chuyển khoản</option>
+                            <option value="cash">Tiền mặt</option>
+                            <option value="momo">Ví MoMo</option>
+                            <option value="vnpay">VNPay</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Ngày thu</label>
+                        <input type="date" name="payment_date" class="form-control" value="<?= date('Y-m-d') ?>">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-semibold">Mã giao dịch / Ghi chú</label>
+                    <input type="text" name="notes" class="form-control" placeholder="VD: Đã nhận chuyển khoản đủ...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-sm btn-success px-3">
+                    <i class="bi bi-check2-circle me-1"></i>Xác nhận Đã thu tiền
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openQuickPayModal(id, code, room, tenant, remaining) {
+    document.getElementById('qp_invoice_id').value = id;
+    document.getElementById('qp_invoice_code').textContent = code;
+    document.getElementById('qp_room_tenant').textContent = 'Phòng ' + room + ' - ' + tenant;
+    document.getElementById('qp_remaining_display').textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
+    document.getElementById('qp_amount').value = remaining;
+}
+</script>
 
 <?php if (!empty($prefillUtility)): ?>
 <script>

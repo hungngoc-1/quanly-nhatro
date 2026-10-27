@@ -41,6 +41,7 @@ class InvoiceController
 
         $invoices = $this->invoiceModel->getAll($filters);
         $activeContracts = $this->contractModel->getActiveContracts();
+        $payments = $this->paymentModel->getAll();
 
         // Nếu chuyển từ trang Điện Nước sang để tạo nhanh hóa đơn
         $prefillUtility = null;
@@ -49,9 +50,10 @@ class InvoiceController
         }
 
         CoreHelper::view('invoices/create', [
-            'pageTitle'       => 'Quản lý & Lập Hóa đơn Tiền trọ',
+            'pageTitle'       => 'Quản lý Hóa đơn & Thu tiền',
             'invoices'        => $invoices,
             'activeContracts' => $activeContracts,
+            'payments'        => $payments,
             'filters'         => $filters,
             'prefillUtility'  => $prefillUtility,
         ]);

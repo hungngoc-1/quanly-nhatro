@@ -5,7 +5,7 @@ use App\Helpers\CoreHelper;
 ?>
 <?php if (!empty($isTenant)): ?>
     <!-- Giao diện Dashboard dành cho Khách thuê -->
-    <div class="row g-4">
+    <div class="row g-3">
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm glow-border-card h-100">
                 <div class="card-header bg-gradient-primary text-white fw-bold py-3">
@@ -108,8 +108,196 @@ use App\Helpers\CoreHelper;
         </div>
     </div>
 <?php else: ?>
-    <!-- Giao diện Dashboard dành cho Chủ trọ / Quản lý -->
-    <div class="row g-3 mb-4">
+    <!-- 1. ƯU TIÊN HIỂN THỊ ĐẦU TIÊN KHI MỞ TRANG: Hóa đơn Thu nợ & Các Thông báo (Đặt phòng + Hợp đồng sắp hết hạn) -->
+    <div class="row g-3 mb-3">
+        <!-- Cột Trái: Hóa đơn Chưa thu / Thu nợ -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm glow-border-card h-100">
+                <div class="card-header bg-white py-2-5 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="header-icon-pill bg-danger-subtle text-danger"><i class="bi bi-receipt-cutoff"></i></span>
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark">Hóa đơn Cần Thu Nợ (<?= count($unpaidInvoices) ?>)</h6>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1.5">
+                        <a href="<?= CoreHelper::url('/invoices/create') ?>" class="btn btn-sm btn-primary rounded-pill px-3">
+                            <i class="bi bi-receipt-cutoff me-1"></i>Quản lý &amp; Lập hóa đơn
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã HĐ</th>
+                                    <th>Phòng / Khách</th>
+                                    <th>Kỳ</th>
+                                    <th>Còn phải thu</th>
+                                    <th>Hạn đóng</th>
+                                    <th class="text-end">Thao tác &amp; Thu tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($unpaidInvoices)): ?>
+                                    <tr><td colspan="6" class="text-center py-4 text-muted">Tuyệt vời! Không có hóa đơn nào tồn đọng công nợ.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach ($unpaidInvoices as $inv): ?>
+                                        <tr>
+                                            <td class="fw-bold text-primary"><?= CoreHelper::e($inv['invoice_code']) ?></td>
+                                            <td>
+                                                <span class="badge bg-dark"><?= CoreHelper::e($inv['room_number']) ?></span>
+                                                <span class="ms-1 fw-medium"><?= CoreHelper::e($inv['tenant_name']) ?></span>
+                                            </td>
+                                            <td>T<?= (int) $inv['month'] ?>/<?= (int) $inv['year'] ?></td>
+                                            <td class="fw-bold text-danger"><?= CoreHelper::formatCurrency($inv['remaining_amount']) ?></td>
+                                            <td>
+                                                <?= CoreHelper::formatDate($inv['due_date']) ?>
+                                                <?php if ($inv['status'] === 'overdue'): ?>
+                                                    <span class="badge bg-danger ms-1">Quá hạn</span>
+                                                <?php elseif ($inv['status'] === 'partial'): ?>
+                                                    <span class="badge bg-warning text-dark ms-1">1 phần</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="d-inline-flex gap-1">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-success rounded-pill px-2.5"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#dashQuickPayModal"
+                                                            onclick="openDashQuickPay(<?= (int) $inv['id'] ?>, '<?= CoreHelper::e($inv['invoice_code']) ?>', '<?= CoreHelper::e($inv['room_number']) ?>', '<?= CoreHelper::e($inv['tenant_name']) ?>', <?= (float) $inv['remaining_amount'] ?>)">
+                                                        <i class="bi bi-cash-coin me-1"></i>Thu tiền
+                                                    </button>
+                                                    <a href="<?= CoreHelper::url('/invoices/detail', ['id' => $inv['id']]) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-2.5">
+                                                        Chi tiết
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột Phải: Trung tâm Thông báo (Khách đặt trước phòng 360° & Hợp đồng sắp hết hạn) -->
+        <div class="col-lg-5 d-flex flex-column gap-3">
+            <!-- Thông báo 1: Khách đặt trước / giữ phòng từ Web 360° -->
+            <div class="card border-0 shadow-sm glow-border-card">
+                <div class="card-header bg-white py-2-5 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="header-icon-pill bg-primary-subtle text-primary"><i class="bi bi-bell-fill"></i></span>
+                        <h6 class="mb-0 fw-bold text-dark">
+                            Thông báo Đặt trước Phòng
+                            <?php if (!empty($pendingBookings)): ?>
+                                <span class="badge bg-danger ms-1"><?= count($pendingBookings) ?> mới</span>
+                            <?php endif; ?>
+                        </h6>
+                    </div>
+                    <a href="<?= CoreHelper::url('/booking/history') ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5" style="font-size: 0.72rem;">
+                        <i class="bi bi-clock-history me-1"></i>Lịch sử (<?= (int) ($historyBookingsCount ?? 0) ?>)
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (empty($pendingBookings)): ?>
+                        <div class="py-3 px-3 text-center text-muted small">
+                            Hiện không có yêu cầu giữ phòng mới chờ xử lý.
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Phòng</th>
+                                        <th>Khách đặt / SĐT</th>
+                                        <th>Vào ở</th>
+                                        <th class="text-end">Xử lý</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach (array_slice($pendingBookings, 0, 4) as $bk): ?>
+                                        <tr class="table-warning bg-opacity-10">
+                                            <td><span class="badge bg-primary">P.<?= CoreHelper::e($bk['room_number']) ?></span></td>
+                                            <td>
+                                                <div class="fw-bold text-dark"><?= CoreHelper::e($bk['full_name']) ?></div>
+                                                <a href="tel:<?= CoreHelper::e($bk['phone']) ?>" class="text-primary text-decoration-none fw-semibold"><?= CoreHelper::e($bk['phone']) ?></a>
+                                            </td>
+                                            <td><?= !empty($bk['move_in_date']) ? date('d/m', strtotime($bk['move_in_date'])) : 'Sớm nhất' ?></td>
+                                            <td class="text-end">
+                                                <form method="POST" action="<?= CoreHelper::url('/booking/status') ?>" class="d-inline">
+                                                    <input type="hidden" name="id" value="<?= (int) $bk['id'] ?>">
+                                                    <input type="hidden" name="status" value="contacted">
+                                                    <button type="submit" class="btn btn-sm btn-success py-0 px-2" style="font-size: 0.7rem;" title="Đánh dấu đã liên hệ và chuyển sang Lịch sử">
+                                                        <i class="bi bi-check2-circle me-1"></i>Đã liên hệ
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Thông báo 2: Hợp đồng Sắp hết hạn (60 ngày) -->
+            <div class="card border-0 shadow-sm glow-border-card flex-grow-1">
+                <div class="card-header bg-white py-2-5 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="header-icon-pill bg-warning-subtle text-warning-emphasis"><i class="bi bi-calendar-event"></i></span>
+                        <h6 class="mb-0 fw-bold text-dark">Hợp đồng Sắp hết hạn (60 ngày)</h6>
+                    </div>
+                    <a href="<?= CoreHelper::url('/contracts') ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5" style="font-size: 0.72rem;">Quản lý HĐ</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Phòng</th>
+                                    <th>Khách thuê</th>
+                                    <th>Ngày hết hạn</th>
+                                    <th>Còn lại</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($expiringContracts)): ?>
+                                    <tr><td colspan="4" class="text-center py-3 text-muted">Không có hợp đồng nào sắp hết hạn trong 60 ngày tới.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach ($expiringContracts as $ec): ?>
+                                        <tr>
+                                            <td><span class="badge bg-primary"><?= CoreHelper::e($ec['room_number']) ?></span></td>
+                                            <td>
+                                                <div class="fw-semibold"><?= CoreHelper::e($ec['tenant_name']) ?></div>
+                                                <div class="text-muted"><?= CoreHelper::e($ec['tenant_phone']) ?></div>
+                                            </td>
+                                            <td><?= CoreHelper::formatDate($ec['end_date']) ?></td>
+                                            <td>
+                                                <?php $days = (int) $ec['days_left']; ?>
+                                                <?php if ($days < 0): ?>
+                                                    <span class="badge bg-danger">Quá hạn <?= abs($days) ?> ngày</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-warning text-dark">Còn <?= $days ?> ngày</span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Bốn thẻ Chỉ số Tổng quan Nhà trọ -->
+    <div class="row g-2.5 mb-3">
         <div class="col-sm-6 col-xl-3">
             <div class="card border-0 shadow-sm stat-card glow-border-card stat-card-indigo h-100">
                 <div class="card-body">
@@ -194,11 +382,11 @@ use App\Helpers\CoreHelper;
         </div>
     </div>
 
-    <!-- Biểu đồ Doanh thu & Trạng thái phòng -->
-    <div class="row g-4 mb-4">
+    <!-- 3. Biểu đồ Doanh thu & Cơ cấu Trạng thái phòng -->
+    <div class="row g-3">
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm glow-border-card h-100">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white py-2-5 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2">
                         <span class="header-icon-pill bg-primary-subtle text-primary"><i class="bi bi-bar-chart-fill"></i></span>
                         <h6 class="mb-0 fw-bold">Biểu đồ Doanh thu &amp; Thực thu Năm <?= (int) $year ?></h6>
@@ -208,32 +396,32 @@ use App\Helpers\CoreHelper;
                     </a>
                 </div>
                 <div class="card-body">
-                    <canvas id="revenueChart" height="110"></canvas>
+                    <canvas id="revenueChart" height="95"></canvas>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm glow-border-card h-100">
-                <div class="card-header bg-white py-3 d-flex align-items-center gap-2">
+                <div class="card-header bg-white py-2-5 d-flex align-items-center gap-2">
                     <span class="header-icon-pill bg-success-subtle text-success"><i class="bi bi-pie-chart-fill"></i></span>
                     <h6 class="mb-0 fw-bold">Cơ cấu Trạng thái Phòng</h6>
                 </div>
                 <div class="card-body d-flex flex-column justify-content-center align-items-center">
-                    <div style="max-width: 220px; width: 100%; position: relative;">
+                    <div style="max-width: 175px; width: 100%; position: relative;">
                         <canvas id="roomStatusChart"></canvas>
                     </div>
-                    <div class="d-flex justify-content-around w-100 mt-4 pt-3 border-top small">
+                    <div class="d-flex justify-content-around w-100 mt-3 pt-2 border-top small">
                         <div class="text-center">
-                            <div class="text-muted mb-1"><span class="status-dot bg-success me-1"></span>Đang thuê</div>
+                            <div class="text-muted mb-0.5"><span class="status-dot bg-success me-1"></span>Đang thuê</div>
                             <strong class="fs-6"><?= (int) $stats['rooms']['occupied'] ?></strong>
                         </div>
                         <div class="text-center">
-                            <div class="text-muted mb-1"><span class="status-dot bg-primary me-1"></span>Phòng trống</div>
+                            <div class="text-muted mb-0.5"><span class="status-dot bg-primary me-1"></span>Phòng trống</div>
                             <strong class="fs-6"><?= (int) $stats['rooms']['available'] ?></strong>
                         </div>
                         <div class="text-center">
-                            <div class="text-muted mb-1"><span class="status-dot bg-warning me-1"></span>Bảo trì</div>
+                            <div class="text-muted mb-0.5"><span class="status-dot bg-warning me-1"></span>Bảo trì</div>
                             <strong class="fs-6"><?= (int) $stats['rooms']['maintenance'] ?></strong>
                         </div>
                     </div>
@@ -242,120 +430,71 @@ use App\Helpers\CoreHelper;
         </div>
     </div>
 
-    <!-- Danh sách Hóa đơn chưa thanh toán & Hợp đồng sắp hết hạn -->
-    <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card border-0 shadow-sm glow-border-card h-100">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="header-icon-pill bg-danger-subtle text-danger"><i class="bi bi-receipt-cutoff"></i></span>
-                        <h6 class="mb-0 fw-bold text-dark">Hóa đơn Chưa thu / Còn nợ</h6>
-                    </div>
-                    <a href="<?= CoreHelper::url('/invoices/create') ?>" class="btn btn-sm btn-primary rounded-pill px-3">
-                        <i class="bi bi-plus-lg me-1"></i>Lập hóa đơn
-                    </a>
+    <!-- Modal Thu Tiền Nhanh trực tiếp tại Bảng Hóa đơn Cần Thu Nợ -->
+    <div class="modal fade" id="dashQuickPayModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" action="<?= CoreHelper::url('/payments/store') ?>" class="modal-content">
+                <?= CoreHelper::csrfField() ?>
+                <input type="hidden" name="invoice_id" id="dqp_invoice_id">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-cash-coin text-success me-2"></i>Thu tiền Hóa đơn <span id="dqp_invoice_code" class="text-primary"></span></h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 small">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Mã HĐ</th>
-                                    <th>Phòng / Khách</th>
-                                    <th>Kỳ</th>
-                                    <th>Còn phải thu</th>
-                                    <th>Hạn đóng</th>
-                                    <th class="text-end">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($unpaidInvoices)): ?>
-                                    <tr><td colspan="6" class="text-center py-4 text-muted">Tuyệt vời! Không có hóa đơn nào tồn đọng công nợ.</td></tr>
-                                <?php else: ?>
-                                    <?php foreach ($unpaidInvoices as $inv): ?>
-                                        <tr>
-                                            <td class="fw-bold text-primary"><?= CoreHelper::e($inv['invoice_code']) ?></td>
-                                            <td>
-                                                <span class="badge bg-dark"><?= CoreHelper::e($inv['room_number']) ?></span>
-                                                <span class="ms-1 fw-medium"><?= CoreHelper::e($inv['tenant_name']) ?></span>
-                                            </td>
-                                            <td>T<?= (int) $inv['month'] ?>/<?= (int) $inv['year'] ?></td>
-                                            <td class="fw-bold text-danger"><?= CoreHelper::formatCurrency($inv['remaining_amount']) ?></td>
-                                            <td>
-                                                <?= CoreHelper::formatDate($inv['due_date']) ?>
-                                                <?php if ($inv['status'] === 'overdue'): ?>
-                                                    <span class="badge bg-danger ms-1">Quá hạn</span>
-                                                <?php elseif ($inv['status'] === 'partial'): ?>
-                                                    <span class="badge bg-warning text-dark ms-1">1 phần</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td class="text-end">
-                                                <a href="<?= CoreHelper::url('/invoices/detail', ['id' => $inv['id']]) ?>" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                                    Chi tiết / Thu
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                <div class="modal-body">
+                    <div class="p-2.5 mb-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-muted">Phòng / Khách thuê</div>
+                            <div class="fw-bold text-dark" id="dqp_room_tenant">—</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">Còn phải thu</div>
+                            <div class="fw-bold text-danger fs-6" id="dqp_remaining_display">0 đ</div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="col-lg-5">
-            <div class="card border-0 shadow-sm glow-border-card h-100">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="header-icon-pill bg-warning-subtle text-warning-emphasis"><i class="bi bi-calendar-event"></i></span>
-                        <h6 class="mb-0 fw-bold text-dark">Hợp đồng Sắp hết hạn (60 ngày)</h6>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Số tiền thực thu (VNĐ) <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" id="dqp_amount" class="form-control fw-bold text-success" min="1000" required>
                     </div>
-                    <a href="<?= CoreHelper::url('/contracts') ?>" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Quản lý HĐ</a>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 small">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Phòng</th>
-                                    <th>Khách thuê</th>
-                                    <th>Ngày hết hạn</th>
-                                    <th>Còn lại</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (empty($expiringContracts)): ?>
-                                    <tr><td colspan="4" class="text-center py-4 text-muted">Không có hợp đồng nào sắp hết hạn trong 60 ngày tới.</td></tr>
-                                <?php else: ?>
-                                    <?php foreach ($expiringContracts as $ec): ?>
-                                        <tr>
-                                            <td><span class="badge bg-primary"><?= CoreHelper::e($ec['room_number']) ?></span></td>
-                                            <td>
-                                                <div class="fw-semibold"><?= CoreHelper::e($ec['tenant_name']) ?></div>
-                                                <div class="text-muted"><?= CoreHelper::e($ec['tenant_phone']) ?></div>
-                                            </td>
-                                            <td><?= CoreHelper::formatDate($ec['end_date']) ?></td>
-                                            <td>
-                                                <?php $days = (int) $ec['days_left']; ?>
-                                                <?php if ($days < 0): ?>
-                                                    <span class="badge bg-danger">Quá hạn <?= abs($days) ?> ngày</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-warning text-dark">Còn <?= $days ?> ngày</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Hình thức thanh toán</label>
+                            <select name="payment_method" class="form-select">
+                                <option value="bank_transfer">Chuyển khoản</option>
+                                <option value="cash">Tiền mặt</option>
+                                <option value="momo">Ví MoMo</option>
+                                <option value="vnpay">VNPay</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Ngày thu</label>
+                            <input type="date" name="payment_date" class="form-control" value="<?= date('Y-m-d') ?>">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Mã giao dịch / Ghi chú</label>
+                        <input type="text" name="notes" class="form-control" placeholder="VD: Đã nhận chuyển khoản đủ...">
                     </div>
                 </div>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-sm btn-success px-3">
+                        <i class="bi bi-check2-circle me-1"></i>Xác nhận Đã thu tiền
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
+    function openDashQuickPay(id, code, room, tenant, remaining) {
+        document.getElementById('dqp_invoice_id').value = id;
+        document.getElementById('dqp_invoice_code').textContent = code;
+        document.getElementById('dqp_room_tenant').textContent = 'Phòng ' + room + ' - ' + tenant;
+        document.getElementById('dqp_remaining_display').textContent = new Intl.NumberFormat('vi-VN').format(remaining) + ' đ';
+        document.getElementById('dqp_amount').value = remaining;
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const monthlyData = <?= json_encode($monthlyRevenue) ?>;
         const roomStats = <?= json_encode($stats['rooms']) ?>;
@@ -399,19 +538,19 @@ use App\Helpers\CoreHelper;
                     plugins: {
                         legend: {
                             position: 'top',
-                            labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Be Vietnam Pro', sans-serif", weight: '600' } }
+                            labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Inter', sans-serif", size: 11, weight: '600' } }
                         }
                     },
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { font: { family: "'Be Vietnam Pro', sans-serif" } }
+                            ticks: { font: { family: "'Inter', sans-serif", size: 11 } }
                         },
                         y: {
                             beginAtZero: true,
                             grid: { color: 'rgba(148, 163, 184, 0.15)', borderDash: [4, 4] },
                             ticks: {
-                                font: { family: "'Be Vietnam Pro', sans-serif" },
+                                font: { family: "'Inter', sans-serif", size: 11 },
                                 callback: function(val) {
                                     return new Intl.NumberFormat('vi-VN').format(val) + ' đ';
                                 }

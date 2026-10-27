@@ -12,10 +12,10 @@ $flashes = CoreHelper::getFlashes();
     <title>Đăng nhập - SMART STAY Quản lý Nhà trọ</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,500;0,600;0,700;0,800;1,600&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="<?= CoreHelper::asset('css/style.css') ?>?v=2.0" rel="stylesheet">
+    <link href="<?= CoreHelper::asset('css/style.css') ?>?v=5.0" rel="stylesheet">
 </head>
 <body class="login-page d-flex align-items-center min-vh-100 position-relative overflow-x-hidden">
 <!-- Hiệu ứng nền động (Animated Floating Orbs) -->
@@ -104,10 +104,13 @@ $flashes = CoreHelper::getFlashes();
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn btn-gradient-primary w-100 py-2-5 fw-bold shadow-sm">
+                            <button type="submit" class="btn btn-gradient-primary w-100 py-2-5 fw-bold shadow-sm mb-2">
                                 <span>Đăng nhập Hệ thống</span>
                                 <i class="bi bi-arrow-right-circle-fill ms-2"></i>
                             </button>
+                            <a href="<?= CoreHelper::url('/cho-thue') ?>" class="btn btn-outline-primary w-100 py-2 fw-bold">
+                                <i class="bi bi-badge-vr-fill text-danger me-1"></i>Xem Phòng Trống &amp; Tour 360° (Dành cho Khách tìm phòng)
+                            </a>
                         </form>
 
                         <div class="demo-accounts-box mt-4 pt-3 border-top">
